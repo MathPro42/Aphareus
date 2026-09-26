@@ -1,0 +1,10 @@
+[workspace]
+resolver = "1"
+members = ["engine"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+engine = { path = "engine" }
