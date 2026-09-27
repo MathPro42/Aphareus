@@ -8,7 +8,7 @@ use crate::types::{CastleSide, PieceType, Square};
 /// ```text
 /// 0 quiet         4      capture
 /// 1 double push   5      en passant
-/// 2 short castle	6, 7   unused
+/// 2 short castle  6, 7   unused
 /// 3 long castle   8-11   promotion to N, B, R, Q
 ///                 12-15  same with a capture
 /// ```
