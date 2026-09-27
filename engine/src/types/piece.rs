@@ -27,7 +27,7 @@ impl PieceType {
         PieceType::King,
     ];
 
-    /// All the possible promotion for a pwan.
+    /// All the possible promotions for a pawn.
     pub const PROMOTIONS: [PieceType; 4] = [
         PieceType::Knight,
         PieceType::Bishop,
