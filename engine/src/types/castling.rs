@@ -26,6 +26,9 @@ impl CastleSide {
     }
 }
 
+/// The set of castling rights still available, as 4 flags in the low bits of a `u8`.
+/// Bit layout: `bit = color × 2 + side`.
+/// The 4 high bits are always zero.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
 pub struct CastlingRights(u8);
 
@@ -119,7 +122,7 @@ impl CastlingRights {
     }
 
     /// Parses the standard FEN castling field: `-`, or a subset of `KQkq`
-    /// where each letter appears at most once. Chess960 forms are rejected.
+    /// in that order, each letter at most once. Chess960 forms are rejected for now.
     pub fn parse_standard(s: &str) -> Option<CastlingRights> {
         if s == "-" {
             return Some(CastlingRights::NONE);
@@ -130,7 +133,9 @@ impl CastlingRights {
         let mut bits = 0;
         for c in s.chars() {
             let i = Self::CHARS.iter().position(|&x| x == c)?;
-            if bits & (1 << i) != 0 {
+            // Each letter must come after all the ones already seen,
+            // which rejects both duplicates and out-of-order letters.
+            if bits >> i != 0 {
                 return None;
             }
             bits |= 1 << i;
@@ -343,7 +348,7 @@ mod tests {
 
     #[test]
     fn parse_rejects() {
-        for s in ["", "KK", "KQkqK", "x", "-K", "K-", "A"] {
+        for s in ["", "KK", "KQkqK", "x", "-K", "K-", "A", "qK", "kK", "QK"] {
             assert_eq!(CastlingRights::parse_standard(s), None, "accepted {s:?}");
         }
     }

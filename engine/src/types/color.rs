@@ -9,10 +9,10 @@ pub enum Color {
 }
 
 impl Color {
-    /// Number of color
+    /// Number of colors.
     pub const COUNT: usize = 2;
 
-    /// List of all the existant color
+    /// List of all the existant colors.
     pub const ALL: [Color; Color::COUNT] = [Color::White, Color::Black];
 
     /// Index for array lookups (0 for White, 1 for Black).
@@ -75,7 +75,7 @@ mod tests {
     }
 
     #[test]
-    fn double_filp_color() {
+    fn double_flip_color() {
         assert_eq!(Color::White.flip().flip(), Color::White);
         assert_eq!(Color::Black.flip().flip(), Color::Black);
     }

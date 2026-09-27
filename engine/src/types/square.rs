@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::types::Color;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
 pub enum File {
     A = 0,
@@ -66,7 +66,7 @@ impl fmt::Display for File {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
 pub enum Rank {
     R1 = 0,
@@ -140,7 +140,7 @@ impl fmt::Display for Rank {
 }
 
 #[rustfmt::skip]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
 pub enum Square {
     A1 = 0,  B1, C1, D1, E1, F1, G1, H1,
@@ -185,7 +185,7 @@ impl Square {
         self as usize
     }
 
-    /// Returns the square with this index, or `None` if inexistant.
+    /// Returns the square with this index, or `None` if it is 64 or more.
     #[inline]
     pub const fn from_index(index: u8) -> Option<Square> {
         if (index as usize) < Square::COUNT {
@@ -207,13 +207,13 @@ impl Square {
         Rank::ALL[self.index() >> 3]
     }
 
-    /// Vertical mirror (inversing Rank).
+    /// Vertical mirror (a1 <-> a8), keeping the file.
     #[inline]
     pub const fn flip_vertical(self) -> Square {
         Square::ALL[self.index() ^ 56]
     }
 
-    /// Horizontal mirror (inversing File).
+    /// Horizontal mirror (a1 <-> h1), keeping the rank.
     #[inline]
     pub const fn flip_horizontal(self) -> Square {
         Square::ALL[self.index() ^ 7]
@@ -233,8 +233,9 @@ impl Square {
     /// no wrap from one edge to the other.
     #[inline]
     pub const fn offset(self, file_delta: i8, rank_delta: i8) -> Option<Square> {
-        let file = self.file() as i8 + file_delta;
-        let rank = self.rank() as i8 + rank_delta;
+        // i16 so that no i8 delta can overflow.
+        let file = self.file() as i16 + file_delta as i16;
+        let rank = self.rank() as i16 + rank_delta as i16;
         if file < 0 || file >= 8 || rank < 0 || rank >= 8 {
             return None;
         }
@@ -444,6 +445,8 @@ mod tests {
         assert_eq!(Square::A1.offset(-1, 0), None);
         assert_eq!(Square::H8.offset(0, 1), None);
         assert_eq!(Square::E4.offset(1, 2), Some(Square::F6));
+        assert_eq!(Square::H8.offset(i8::MAX, i8::MAX), None);
+        assert_eq!(Square::A1.offset(i8::MIN, i8::MIN), None);
     }
 
     #[test]
