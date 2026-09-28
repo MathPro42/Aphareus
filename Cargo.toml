@@ -8,3 +8,10 @@ edition = "2024"
 
 [workspace.dependencies]
 engine = { path = "engine" }
+
+# build.rs searches magic numbers: unoptimized, that takes seconds.
+[profile.dev.build-override]
+opt-level = 3
+
+[profile.release.build-override]
+opt-level = 3
