@@ -1,10 +1,9 @@
 mod attacks;
 mod bitboard;
 mod moves;
-
-#[cfg(test)]
 mod prng;
 mod types;
+pub mod zobrist;
 
 pub use attacks::{
     aligned, attacks, between, bishop_attacks, king_attacks, knight_attacks, line, pawn_attacks,
