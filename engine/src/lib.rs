@@ -1,5 +1,7 @@
 mod attacks;
 mod bitboard;
+mod board;
+mod error;
 mod moves;
 mod prng;
 mod types;
@@ -11,5 +13,7 @@ pub use attacks::{
 };
 
 pub use bitboard::{Bitboard, BitboardIter};
+pub use board::{Board, CastlingConfig};
+pub use error::FenError;
 pub use moves::{Move, MoveList, MoveSink};
 pub use types::{CastleSide, CastlingRights, Color, File, Piece, PieceType, Rank, Square};

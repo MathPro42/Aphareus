@@ -1,0 +1,57 @@
+# One invalid FEN per line, then '|' and the expected FenError (Debug form).
+# Lines starting with '#' and blank lines are ignored.
+
+# FieldCount
+| FieldCount(0)
+8/8/8/8/8/8/8/8 w | FieldCount(2)
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 x | FieldCount(7)
+
+# Rank
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1 | Rank(2)
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/8 w KQkq - 0 1 | Rank(1)
+rnbqkbnrr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 | Rank(8)
+rnbqkbn/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 | Rank(8)
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKB3 w KQkq - 0 1 | Rank(1)
+
+# UnknownPiece
+rnbqkbnx/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 | UnknownPiece('x')
+rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 | UnknownPiece('9')
+
+# SideToMove
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x KQkq - 0 1 | SideToMove
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR W KQkq - 0 1 | SideToMove
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR wb KQkq - 0 1 | SideToMove
+
+# Castling
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkqK - 0 1 | Castling
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KX - 0 1 | Castling
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w E - 0 1 | Castling
+rnbqkbn1/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 | Castling
+4k3/8/8/8/8/8/4K3/R6R w KQ - 0 1 | Castling
+4k3/8/8/8/8/8/8/5KRR w GK - 0 1 | Castling
+
+# EnPassant
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq z9 0 1 | EnPassant
+rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e3 0 1 | EnPassant
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e6 0 1 | EnPassant
+rnbqkbnr/pppppppp/8/3Pp3/8/8/PPP1PPPP/RNBQKBNR w KQkq e6 0 1 | EnPassant
+rnbqkbnr/pppp1ppp/4p3/3Pp3/8/8/PPP1PPPP/RNBQKBNR w KQkq e6 0 1 | EnPassant
+
+# Counter
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - x 1 | Counter
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 256 1 | Counter
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0 | Counter
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 -3 | Counter
+
+# KingCount
+8/8/8/8/8/8/8/8 w - - 0 1 | KingCount
+4k3/8/8/8/8/8/8/8 w - - 0 1 | KingCount
+4k3/8/8/8/8/8/8/3KK3 w - - 0 1 | KingCount
+
+# PawnOnBackRank
+P3k3/8/8/8/8/8/8/4K3 w - - 0 1 | PawnOnBackRank
+4k3/8/8/8/8/8/8/p3K3 w - - 0 1 | PawnOnBackRank
+
+# OpponentInCheck
+4k3/8/8/8/8/8/8/4R1K1 w - - 0 1 | OpponentInCheck
+4k3/8/8/8/8/8/3q4/4K3 b - - 0 1 | OpponentInCheck

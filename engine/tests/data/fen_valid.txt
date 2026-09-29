@@ -1,0 +1,25 @@
+# One FEN per line, each written back unchanged by to_fen(from_fen(fen)).
+# Lines starting with '#' and blank lines are ignored.
+
+# Starting position
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+
+# Kiwipete (perft position 2)
+r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1
+
+# Perft positions 3 to 6 (Chess Programming Wiki), 4 also mirrored
+8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1
+r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1
+r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1
+rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8
+r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/3P1N1P/PPP1NPP1/R4RK1 w - - 0 10
+
+# Chess960
+bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P4/NPP1P1PP/BQ1BNRKR w KQkq - 2 9
+rk2r3/8/8/8/8/8/8/RK2R3 w KQkq - 0 1
+r1k1r2r/8/8/8/8/8/8/R1K1R2R w EQeq - 0 1
+4k3/8/8/8/8/8/8/5KRR w G - 0 1
+
+# En passant capture available, for each side
+rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3
+rnbqkbnr/pppp1ppp/8/8/3Pp3/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 2
