@@ -48,6 +48,33 @@ impl Board {
             | (rook_attacks(sq, occupied) & (self.pieces(PieceType::Rook) | queens))
     }
 
+    /// Returns `true` if a `capturer` pawn can legally take en passant on
+    /// `ep`: some pawn attacks it, and the board after the capture leaves
+    /// its king safe (horizontal and diagonal pins, and checks the capture
+    /// does not answer, all fall out of that one simulation).
+    ///
+    /// The en passant square is part of the hash, so it must only be set
+    /// when this holds: otherwise the same position gets two hashes.
+    pub(crate) fn has_legal_en_passant(&self, capturer: Color, ep: Square) -> bool {
+        let pawns = pawn_attacks(!capturer, ep) & self.piece_bb(capturer, PieceType::Pawn);
+        if pawns.is_empty() {
+            return false;
+        }
+        let king = self.king_square(capturer);
+        let captured = Bitboard::from_square(
+            ep.backward(capturer)
+                .expect("the en passant square is on the sixth rank"),
+        );
+        let enemies = self.color_bb(!capturer).without(captured);
+        pawns.into_iter().any(|from| {
+            let occupied = self.occupied()
+                ^ Bitboard::from_square(from)
+                ^ captured
+                ^ Bitboard::from_square(ep);
+            (self.attackers_to(king, occupied) & enemies).is_empty()
+        })
+    }
+
     /// Enemy pieces giving check to the side to move.
     pub(crate) fn compute_checkers(&self) -> Bitboard {
         let us = self.side_to_move;
@@ -56,7 +83,11 @@ impl Board {
 
     /// Pieces of the side to move alone between their king and an enemy
     /// slider.
-    pub(crate) fn compute_pinned(&self) -> Bitboard {
+    ///
+    /// Computed from scratch on each call, not stored: most positions of a
+    /// search never generate moves, so `make_move` does not pay for it.
+    /// Move generation computes it once per position, in its `Context`.
+    pub fn compute_pinned(&self) -> Bitboard {
         let us = self.side_to_move;
         let them = !us;
         let king = self.king_square(us);
@@ -83,10 +114,9 @@ impl Board {
         (self.hash, self.pawn_hash, self.non_pawn_hash) = self.compute_hashes();
     }
 
-    /// Recomputes the checkers and the pinned pieces of the side to move.
-    pub(crate) fn refresh_state(&mut self) {
+    /// Recomputes the pieces giving check to the side to move.
+    pub(crate) fn refresh_checkers(&mut self) {
         self.checkers = self.compute_checkers();
-        self.pinned = self.compute_pinned();
     }
 }
 
@@ -139,7 +169,7 @@ mod tests {
     #[test]
     fn knight_pinned_by_rook() {
         let board = white_to_move(&[(WhiteKnight, E4), (BlackRook, E8)]);
-        assert_eq!(board.pinned(), Bitboard::from_square(E4));
+        assert_eq!(board.compute_pinned(), Bitboard::from_square(E4));
     }
 
     #[test]
@@ -150,25 +180,25 @@ mod tests {
             (WhiteRook, F2),
             (BlackQueen, H4),
         ]);
-        assert_eq!(board.pinned(), bb(&[D2, F2]));
+        assert_eq!(board.compute_pinned(), bb(&[D2, F2]));
     }
 
     #[test]
     fn enemy_blocker_is_not_pinned() {
         let board = white_to_move(&[(BlackKnight, E4), (BlackRook, E8)]);
-        assert!(board.pinned().is_empty());
+        assert!(board.compute_pinned().is_empty());
     }
 
     #[test]
     fn piece_between_two_enemy_pieces_is_not_pinned() {
         let board = white_to_move(&[(BlackPawn, E3), (WhiteKnight, E5), (BlackRook, E8)]);
-        assert!(board.pinned().is_empty());
+        assert!(board.compute_pinned().is_empty());
     }
 
     #[test]
     fn two_blockers_are_not_pinned() {
         let board = white_to_move(&[(WhiteKnight, E3), (WhiteBishop, E5), (BlackRook, E8)]);
-        assert!(board.pinned().is_empty());
+        assert!(board.compute_pinned().is_empty());
     }
 
     #[test]
@@ -204,6 +234,6 @@ mod tests {
             Color::Black,
         );
         assert_eq!(board.checkers(), Bitboard::from_square(D7));
-        assert_eq!(board.pinned(), Bitboard::from_square(E7));
+        assert_eq!(board.compute_pinned(), Bitboard::from_square(E7));
     }
 }

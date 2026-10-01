@@ -56,14 +56,18 @@ pub const fn aligned(a: Square, b: Square, c: Square) -> bool {
 /// Blockers are included, whatever their color.
 #[inline]
 pub const fn bishop_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
-    Bitboard(magic::BISHOP_TABLE[magic::BISHOP_ENTRIES[sq.index()].index(occupied)])
+    let index = magic::BISHOP_ENTRIES[sq.index()].index(occupied);
+    debug_assert!(index < magic::BISHOP_TABLE.len());
+    Bitboard(unsafe { *magic::BISHOP_TABLE.as_ptr().add(index) })
 }
 
 /// Squares attacked by a rook on `sq` given the `occupied` squares.
 /// Blockers are included, whatever their color.
 #[inline]
 pub const fn rook_attacks(sq: Square, occupied: Bitboard) -> Bitboard {
-    Bitboard(magic::ROOK_TABLE[magic::ROOK_ENTRIES[sq.index()].index(occupied)])
+    let index = magic::ROOK_ENTRIES[sq.index()].index(occupied);
+    debug_assert!(index < magic::ROOK_TABLE.len());
+    Bitboard(unsafe { *magic::ROOK_TABLE.as_ptr().add(index) })
 }
 
 /// Squares attacked by a queen on `sq` given the `occupied` squares.

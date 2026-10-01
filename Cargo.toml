@@ -9,9 +9,17 @@ edition = "2024"
 [workspace.dependencies]
 engine = { path = "engine" }
 
-# build.rs searches magic numbers: unoptimized, that takes seconds.
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "warn"
+
 [profile.dev.build-override]
 opt-level = 3
 
 [profile.release.build-override]
 opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"

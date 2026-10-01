@@ -21,6 +21,15 @@ impl Color {
         self as usize
     }
 
+    /// The color of index `index`, the one conversion from an integer:
+    #[inline(always)]
+    pub(crate) const fn from_index_masked(index: u32) -> Color {
+        debug_assert!(index < 2, "color index out of range");
+        // SAFETY: `Color` is `repr(u8)` with the discriminants 0 to 1, and
+        // the mask keeps the value in that range.
+        unsafe { core::mem::transmute::<u8, Color>((index & 1) as u8) }
+    }
+
     /// Returns the other color.
     #[inline]
     pub const fn flip(self) -> Color {
