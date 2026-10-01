@@ -17,30 +17,29 @@ impl Board {
         self.toggle_hashes(piece, sq);
     }
 
-    /// Removes and returns the piece on `sq`.
-    ///
-    /// # Panics
-    ///
-    /// If `sq` is empty.
-    #[cfg_attr(not(test), expect(dead_code, reason = "used by make/unmake"))]
-    pub(crate) fn remove_piece(&mut self, sq: Square) -> Piece {
-        let piece = self.mailbox[sq.index()].expect("remove_piece: empty square");
+    /// Removes `piece` from `sq`. The caller already knows the piece, so the
+    /// mailbox is not read back.
+    pub(crate) fn remove_piece(&mut self, piece: Piece, sq: Square) {
+        debug_assert_eq!(
+            self.mailbox[sq.index()],
+            Some(piece),
+            "remove_piece: {piece} is not on {sq}"
+        );
         let bit = Bitboard::from_square(sq);
         self.by_type[piece.piece_type().index()] ^= bit;
         self.by_color[piece.color().index()] ^= bit;
         self.mailbox[sq.index()] = None;
         self.toggle_hashes(piece, sq);
-        piece
     }
 
-    /// Moves the piece on `from` to the empty square `to`.
-    ///
-    /// # Panics
-    ///
-    /// If `from` is empty.
-    #[cfg_attr(not(test), expect(dead_code, reason = "used by make/unmake"))]
-    pub(crate) fn move_piece(&mut self, from: Square, to: Square) {
-        let piece = self.mailbox[from.index()].expect("move_piece: empty square");
+    /// Moves `piece` from `from` to the empty square `to`. The caller already
+    /// knows the piece, so the mailbox is not read back.
+    pub(crate) fn move_piece(&mut self, piece: Piece, from: Square, to: Square) {
+        debug_assert_eq!(
+            self.mailbox[from.index()],
+            Some(piece),
+            "move_piece: {piece} is not on {from}"
+        );
         debug_assert!(
             self.mailbox[to.index()].is_none(),
             "move_piece: {to} is taken"
@@ -50,14 +49,22 @@ impl Board {
         self.by_color[piece.color().index()] ^= both;
         self.mailbox[from.index()] = None;
         self.mailbox[to.index()] = Some(piece);
-        self.toggle_hashes(piece, from);
-        self.toggle_hashes(piece, to);
+        // Leaving `from` and landing on `to`, combined into one key.
+        self.toggle_key(
+            piece,
+            zobrist::piece_square(piece, from) ^ zobrist::piece_square(piece, to),
+        );
     }
 
     /// XORs `piece` on `sq` in or out of the hash and of the pawn or
     /// non-pawn hash.
     fn toggle_hashes(&mut self, piece: Piece, sq: Square) {
-        let key = zobrist::piece_square(piece, sq);
+        self.toggle_key(piece, zobrist::piece_square(piece, sq));
+    }
+
+    /// XORs `key`, belonging to `piece`, into the hash and into the pawn or
+    /// non-pawn hash.
+    fn toggle_key(&mut self, piece: Piece, key: u64) {
         self.hash ^= key;
         if piece.piece_type() == PieceType::Pawn {
             self.pawn_hash ^= key;
@@ -102,7 +109,7 @@ mod tests {
             let mut board = original.clone();
             board.add_piece(piece, C3);
             assert_ne!(board, original);
-            assert_eq!(board.remove_piece(C3), piece);
+            board.remove_piece(piece, C3);
             assert_eq!(board, original, "{piece}");
         }
     }
@@ -112,10 +119,11 @@ mod tests {
         let original = sample();
         for (from, to) in [(E4, E5), (D8, A5), (G1, H1), (D5, D4)] {
             let mut board = original.clone();
-            board.move_piece(from, to);
+            let piece = original.piece_on(from).unwrap();
+            board.move_piece(piece, from, to);
             assert_eq!(board.piece_on(from), None);
-            assert_eq!(board.piece_on(to), original.piece_on(from));
-            board.move_piece(to, from);
+            assert_eq!(board.piece_on(to), Some(piece));
+            board.move_piece(piece, to, from);
             assert_eq!(board, original, "{from} {to}");
         }
     }
@@ -128,11 +136,11 @@ mod tests {
             let sq = Square::ALL[16 + i];
             board.add_piece(piece, sq);
             assert_hashes(&board);
-            board.move_piece(sq, Square::ALL[40 + i]);
+            board.move_piece(piece, sq, Square::ALL[40 + i]);
             assert_hashes(&board);
         }
         for i in 0..Piece::COUNT {
-            board.remove_piece(Square::ALL[40 + i]);
+            board.remove_piece(Piece::ALL[i], Square::ALL[40 + i]);
             assert_hashes(&board);
         }
         assert_eq!(board, sample());

@@ -1,6 +1,7 @@
 mod castling;
 mod display;
 mod fen;
+mod make;
 mod mirror;
 mod primitives;
 mod state;
@@ -11,9 +12,8 @@ pub use castling::CastlingConfig;
 use crate::bitboard::Bitboard;
 use crate::types::{CastlingRights, Color, Piece, PieceType, Square};
 
-/// A position: the pieces, the game state, its hashes, and the checks and
-/// pins of the side to move. About 256 bytes, so copying it on every move
-/// stays cheap.
+/// A position: the pieces, the game state, its hashes, and the pieces
+/// giving check to the side to move.
 #[must_use]
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Board {
@@ -25,7 +25,7 @@ pub struct Board {
     mailbox: [Option<Piece>; Square::COUNT],
     side_to_move: Color,
     castling_rights: CastlingRights,
-    /// Only set when an en passant capture is actually possible.
+    /// Only set when an en passant capture is legal.
     en_passant: Option<Square>,
     /// Plies since the last capture or pawn move (fifty-move rule).
     halfmove_clock: u8,
@@ -38,8 +38,6 @@ pub struct Board {
     non_pawn_hash: [u64; Color::COUNT],
     /// Enemy pieces giving check to the side to move.
     checkers: Bitboard,
-    /// Pieces of the side to move pinned to their king.
-    pinned: Bitboard,
     castling: CastlingConfig,
 }
 
@@ -61,7 +59,6 @@ impl Board {
             pawn_hash: 0,
             non_pawn_hash: [0; Color::COUNT],
             checkers: Bitboard::EMPTY,
-            pinned: Bitboard::EMPTY,
             castling: CastlingConfig::NONE,
         }
     }
@@ -123,7 +120,7 @@ impl Board {
         self.castling_rights
     }
 
-    /// The en passant square, only when a capture there is actually possible.
+    /// The en passant square, only when a legal capture there exists.
     #[inline]
     #[must_use]
     pub const fn en_passant(&self) -> Option<Square> {
@@ -168,12 +165,6 @@ impl Board {
     #[inline]
     pub const fn checkers(&self) -> Bitboard {
         self.checkers
-    }
-
-    /// Pieces of the side to move pinned to their king.
-    #[inline]
-    pub const fn pinned(&self) -> Bitboard {
-        self.pinned
     }
 
     #[inline]
@@ -222,7 +213,7 @@ impl Board {
         }
         board.side_to_move = side;
         board.refresh_hashes();
-        board.refresh_state();
+        board.refresh_checkers();
         board
     }
 }

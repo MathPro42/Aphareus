@@ -1,7 +1,6 @@
 use std::fmt::Write as _;
 
 use super::{Board, CastlingConfig};
-use crate::attacks::pawn_attacks;
 use crate::bitboard::Bitboard;
 use crate::error::FenError;
 use crate::types::{CastleSide, CastlingRights, Color, File, Piece, PieceType, Rank, Square};
@@ -19,7 +18,7 @@ impl Board {
     /// or Shredder-FEN (file letters, for Chess960). The halfmove clock and
     /// fullmove number are optional (0 and 1 by default).
     ///
-    /// The en passant square is kept only when a pawn can actually capture
+    /// The en passant square is kept only when a pawn can legally capture
     /// there: otherwise it is dropped, and `to_fen` writes `-`.
     ///
     /// # Errors
@@ -62,7 +61,7 @@ impl Board {
         };
 
         board.refresh_hashes();
-        board.refresh_state();
+        board.refresh_checkers();
         let us = board.side_to_move;
         let their_king = board.king_square(!us);
         if !(board.attackers_to(their_king, board.occupied()) & board.color_bb(us)).is_empty() {
@@ -240,11 +239,11 @@ fn parse_castling(
             rooks[color.index()][side.index()] = Some(rook);
         }
     }
-    Ok((rights, CastlingConfig::new(kings, rooks)))
+    Ok((rights, CastlingConfig::new(rooks)))
 }
 
 /// Reads the en passant square, once the side to move is known. Returns
-/// `None` for a possible square no pawn can capture on.
+/// `None` for a possible square no pawn can legally capture on.
 fn parse_en_passant(board: &Board, field: &str) -> Result<Option<Square>, FenError> {
     let us = board.side_to_move;
     let ep = Square::parse(field).ok_or(FenError::EnPassant)?;
@@ -259,6 +258,5 @@ fn parse_en_passant(board: &Board, field: &str) -> Result<Option<Square>, FenErr
     {
         return Err(FenError::EnPassant);
     }
-    let capturers = pawn_attacks(!us, ep) & board.piece_bb(us, PieceType::Pawn);
-    Ok((!capturers.is_empty()).then_some(ep))
+    Ok(board.has_legal_en_passant(us, ep).then_some(ep))
 }

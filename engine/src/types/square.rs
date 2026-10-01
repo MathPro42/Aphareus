@@ -37,10 +37,19 @@ impl File {
         self as usize
     }
 
+    /// The file of index `index`, the one conversion from an integer:
+    #[inline(always)]
+    pub(crate) const fn from_index_masked(index: u32) -> File {
+        debug_assert!(index < 8, "file index out of range");
+        // SAFETY: `File` is `repr(u8)` with the discriminants 0 to 7, and
+        // the mask keeps the value in that range.
+        unsafe { core::mem::transmute::<u8, File>((index & 7) as u8) }
+    }
+
     /// Horizontal mirror.
     #[inline]
     pub const fn flip(self) -> File {
-        File::ALL[self.index() ^ 7]
+        File::from_index_masked(self as u32 ^ 7)
     }
 
     /// Parses a lowercase file letter (`'a'` to `'h'`).
@@ -48,7 +57,7 @@ impl File {
     #[inline]
     pub const fn from_char(c: char) -> Option<File> {
         match c {
-            'a'..='h' => Some(File::ALL[(c as u8 - b'a') as usize]),
+            'a'..='h' => Some(File::from_index_masked((c as u8 - b'a') as u32)),
             _ => None,
         }
     }
@@ -101,10 +110,19 @@ impl Rank {
         self as usize
     }
 
+    /// The rank of index `index`, the one conversion from an integer:
+    #[inline(always)]
+    pub(crate) const fn from_index_masked(index: u32) -> Rank {
+        debug_assert!(index < 8, "rank index out of range");
+        // SAFETY: `Rank` is `repr(u8)` with the discriminants 0 to 7, and
+        // the mask keeps the value in that range.
+        unsafe { core::mem::transmute::<u8, Rank>((index & 7) as u8) }
+    }
+
     /// Vertical mirror.
     #[inline]
     pub const fn flip(self) -> Rank {
-        Rank::ALL[self.index() ^ 7]
+        Rank::from_index_masked(self as u32 ^ 7)
     }
 
     /// The rank as seen by `color`.
@@ -121,7 +139,7 @@ impl Rank {
     #[inline]
     pub const fn from_char(c: char) -> Option<Rank> {
         match c {
-            '1'..='8' => Some(Rank::ALL[(c as u8 - b'1') as usize]),
+            '1'..='8' => Some(Rank::from_index_masked((c as u8 - b'1') as u32)),
             _ => None,
         }
     }
@@ -173,10 +191,19 @@ impl Square {
         ]
     };
 
+    /// The square of index `index`, the one conversion from an integer:
+    #[inline(always)]
+    pub(crate) const fn from_index_masked(index: u32) -> Square {
+        debug_assert!(index < 64, "square index out of range");
+        // SAFETY: `Square` is `repr(u8)` with the discriminants 0 to 63, and
+        // the mask keeps the value in that range.
+        unsafe { core::mem::transmute::<u8, Square>((index & 63) as u8) }
+    }
+
     /// Builds a square from its file and rank (`index = rank × 8 + file`).
     #[inline]
     pub const fn new(file: File, rank: Rank) -> Square {
-        Square::ALL[rank.index() * 8 + file.index()]
+        Square::from_index_masked((rank as u32) << 3 | file as u32)
     }
 
     /// Index for array lookups.
@@ -189,7 +216,7 @@ impl Square {
     #[inline]
     pub const fn from_index(index: u8) -> Option<Square> {
         if (index as usize) < Square::COUNT {
-            Some(Square::ALL[index as usize])
+            Some(Square::from_index_masked(index as u32))
         } else {
             None
         }
@@ -198,25 +225,25 @@ impl Square {
     /// Returns the file of the square.
     #[inline]
     pub const fn file(self) -> File {
-        File::ALL[self.index() & 7]
+        File::from_index_masked(self as u32 & 7)
     }
 
     /// Returns the rank of the square.
     #[inline]
     pub const fn rank(self) -> Rank {
-        Rank::ALL[self.index() >> 3]
+        Rank::from_index_masked(self as u32 >> 3)
     }
 
     /// Vertical mirror (a1 <-> a8), keeping the file.
     #[inline]
     pub const fn flip_vertical(self) -> Square {
-        Square::ALL[self.index() ^ 56]
+        Square::from_index_masked(self as u32 ^ 56)
     }
 
     /// Horizontal mirror (a1 <-> h1), keeping the rank.
     #[inline]
     pub const fn flip_horizontal(self) -> Square {
-        Square::ALL[self.index() ^ 7]
+        Square::from_index_masked(self as u32 ^ 7)
     }
 
     /// The square as seen by `color`.
@@ -240,8 +267,8 @@ impl Square {
             return None;
         }
         Some(Square::new(
-            File::ALL[file as usize],
-            Rank::ALL[rank as usize],
+            File::from_index_masked(file as u32),
+            Rank::from_index_masked(rank as u32),
         ))
     }
 

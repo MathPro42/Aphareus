@@ -118,33 +118,34 @@ impl Bitboard {
     ///
     /// # Panics
     ///
-    /// If the bitboard is empty, in every build: the index would be 64 and
-    /// `Square::ALL` bounds-checks it. The debug assertion only gives a
-    /// clearer message.
+    /// If the bitboard is empty, in debug builds. Release builds skip the
+    /// check, the hottest path of move generation, and return a1.
     #[inline]
     #[must_use]
     pub const fn lsb(self) -> Square {
         debug_assert!(!self.is_empty(), "lsb of an empty bitboard");
-        Square::ALL[self.0.trailing_zeros() as usize]
+        Square::from_index_masked(self.0.trailing_zeros())
     }
 
     /// The highest square set.
     ///
     /// # Panics
     ///
-    /// If the bitboard is empty, in every build (see [`Bitboard::lsb`]).
+    /// If the bitboard is empty, in debug builds. Release builds return h8
+    /// (see [`Bitboard::lsb`]).
     #[inline]
     #[must_use]
     pub const fn msb(self) -> Square {
         debug_assert!(!self.is_empty(), "msb of an empty bitboard");
-        Square::ALL[63 - self.0.leading_zeros() as usize]
+        // `63 ^ n` is `63 - n` for `n` below 64, without wrapping at 64.
+        Square::from_index_masked(63 ^ self.0.leading_zeros())
     }
 
     /// Removes and returns the lowest square set.
     ///
     /// # Panics
     ///
-    /// If the bitboard is empty, in every build (see [`Bitboard::lsb`]).
+    /// If the bitboard is empty, in debug builds (see [`Bitboard::lsb`]).
     #[inline]
     pub const fn pop_lsb(&mut self) -> Square {
         let sq = self.lsb();

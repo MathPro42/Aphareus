@@ -1,5 +1,4 @@
 use super::Board;
-use crate::attacks::pawn_attacks;
 use crate::bitboard::Bitboard;
 use crate::types::{CastleSide, Color, Piece, PieceType, Rank, Square};
 
@@ -63,7 +62,6 @@ impl Board {
             "hashes differ from a full recomputation"
         );
         ensure!(self.checkers == self.compute_checkers(), "stale checkers");
-        ensure!(self.pinned == self.compute_pinned(), "stale pinned pieces");
 
         let us = self.side_to_move;
         let them = !us;
@@ -83,8 +81,8 @@ impl Board {
                 "en passant square {ep} is occupied"
             );
             ensure!(
-                !(pawn_attacks(them, ep) & self.piece_bb(us, PieceType::Pawn)).is_empty(),
-                "en passant square {ep} set but no pawn can take"
+                self.has_legal_en_passant(us, ep),
+                "en passant square {ep} set but no legal capture"
             );
         }
 
@@ -191,10 +189,7 @@ mod tests {
     }
 
     #[test]
-    fn stale_state() {
-        let mut board = valid();
-        board.pinned = Bitboard::from_square(E5);
-        assert_invalid(&board, "stale pinned");
+    fn stale_checkers() {
         let mut board = valid();
         board.checkers = Bitboard::from_square(A8);
         assert_invalid(&board, "stale checkers");
@@ -204,13 +199,13 @@ mod tests {
     fn side_not_to_move_in_check() {
         let mut board = valid();
         board.add_piece(WhiteQueen, B5);
-        board.refresh_state();
+        board.refresh_checkers();
         assert_invalid(&board, "Black is in check");
     }
 
     #[test]
     fn bad_en_passant() {
-        for (ep, expected) in [(D3, "wrong rank"), (C6, "no pawn can take")] {
+        for (ep, expected) in [(D3, "wrong rank"), (C6, "no legal capture")] {
             let mut board = valid();
             board.en_passant = Some(ep);
             board.refresh_hashes();
@@ -221,7 +216,7 @@ mod tests {
     #[test]
     fn castling_right_without_rook() {
         let mut board = valid();
-        board.remove_piece(H1);
+        board.remove_piece(WhiteRook, H1);
         assert_invalid(&board, "White may castle King side");
     }
 
@@ -229,7 +224,7 @@ mod tests {
     fn castling_right_with_moved_king() {
         // Black keeps its queen side right and its a8 rook.
         let mut board = valid();
-        board.move_piece(E8, E7);
+        board.move_piece(BlackKing, E8, E7);
         assert_invalid(&board, "Black may castle but its king left");
     }
 }

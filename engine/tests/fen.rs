@@ -110,8 +110,13 @@ fn chess960_two_rooks_on_the_same_side() {
     assert_ne!(outer, inner);
 
     let config = inner.castling_config();
-    assert_eq!(config.mask(Square::G1), !CastlingRights::WHITE_KING_SIDE);
-    assert_eq!(config.mask(Square::H1), CastlingRights::ALL);
+    let rook_moves =
+        |from, to| config.rights_after(CastlingRights::ALL, Color::White, false, from, to);
+    assert_eq!(
+        rook_moves(Square::G1, Square::G2),
+        !CastlingRights::WHITE_KING_SIDE
+    );
+    assert_eq!(rook_moves(Square::H1, Square::H2), CastlingRights::ALL);
     assert_eq!(outer.to_fen(), "4k3/8/8/8/8/8/8/5KRR w K - 0 1");
     assert_eq!(inner.to_fen(), "4k3/8/8/8/8/8/8/5KRR w G - 0 1");
     // Shredder letters for the outer rook read back as standard ones.
@@ -132,7 +137,7 @@ fn startpos() {
     assert_eq!(board.en_passant(), None);
     assert!(!board.in_check());
     assert!(board.checkers().is_empty());
-    assert!(board.pinned().is_empty());
+    assert!(board.compute_pinned().is_empty());
     assert_eq!(
         board.piece_bb(Color::White, PieceType::Pawn),
         Bitboard::from_rank(Rank::R2)
@@ -144,7 +149,7 @@ fn checks_and_pins_are_computed() {
     // Black knight on d3 checks e1; the white bishop on d2 is pinned by b4.
     let board = parse("4k3/8/8/8/1b6/3n4/3B4/4K3 w - - 0 1");
     assert_eq!(board.checkers(), Bitboard::from_square(Square::D3));
-    assert_eq!(board.pinned(), Bitboard::from_square(Square::D2));
+    assert_eq!(board.compute_pinned(), Bitboard::from_square(Square::D2));
 }
 
 #[test]

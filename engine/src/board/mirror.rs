@@ -19,7 +19,7 @@ impl Board {
         mirrored.halfmove_clock = self.halfmove_clock;
         mirrored.fullmove_number = self.fullmove_number;
         mirrored.refresh_hashes();
-        mirrored.refresh_state();
+        mirrored.refresh_checkers();
         debug_assert_eq!(mirrored.check_consistency(), Ok(()));
         mirrored
     }
