@@ -5,8 +5,10 @@ mod error;
 pub mod movegen;
 mod moves;
 mod perft;
+mod position;
 mod prng;
 mod types;
+mod uci_move;
 pub mod zobrist;
 
 pub use attacks::{
@@ -19,4 +21,6 @@ pub use board::{Board, CastlingConfig};
 pub use error::FenError;
 pub use moves::{Move, MoveList, MoveSink};
 pub use perft::{divide, perft};
+pub use position::Position;
 pub use types::{CastleSide, CastlingRights, Color, File, Piece, PieceType, Rank, Square};
+pub use uci_move::{from_uci, to_uci};
