@@ -28,6 +28,9 @@ macro_rules! impl_from_index_bounded {
                 } else {
                     index
                 };
+                // SAFETY: `index` is clamped to `0..COUNT`, and the const
+                // block below checks that `$ty` is one byte with discriminants
+                // `0..COUNT`, so `index` is a valid `$ty`.
                 unsafe { core::mem::transmute::<u8, $ty>(index as u8) }
             }
         }
