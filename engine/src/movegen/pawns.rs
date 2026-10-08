@@ -2,7 +2,6 @@ use super::GenMode;
 use super::masks::Context;
 use crate::attacks::{line, pawn_attacks};
 use crate::bitboard::Bitboard;
-use crate::board::Board;
 use crate::moves::{Move, MoveSink};
 use crate::types::{Color, PieceType, Rank, Square};
 
@@ -16,12 +15,13 @@ const fn offsets(color: Color) -> (i8, i8, i8) {
 
 /// The square `offset` behind `to`.
 fn origin(to: Square, offset: i8) -> Square {
-    Square::from_index_masked((to.index() as i32 - i32::from(offset)) as u32)
+    Square::from_index_bounded((to.index() as i32 - i32::from(offset)) as u32)
 }
 
 /// Pawn moves: the unpinned pawns in bulk, by shifting bitboards, then the
 /// pinned ones one by one, then en passant.
-pub(super) fn generate<M: GenMode>(board: &Board, ctx: &Context, sink: &mut impl MoveSink) {
+pub(super) fn generate<M: GenMode>(ctx: &Context, sink: &mut impl MoveSink) {
+    let board = ctx.board;
     let us = ctx.us;
     let (push, left, right) = offsets(us);
     let pawns = board.piece_bb(us, PieceType::Pawn);
@@ -65,23 +65,19 @@ pub(super) fn generate<M: GenMode>(board: &Board, ctx: &Context, sink: &mut impl
     }
 
     for from in pawns & ctx.pinned {
-        generate_pinned::<M>(board, ctx, from, sink);
+        generate_pinned::<M>(ctx, from, sink);
     }
 
     if M::NOISY
         && let Some(ep) = board.en_passant()
     {
-        en_passant(board, ctx, ep, sink);
+        en_passant(ctx, ep, sink);
     }
 }
 
 /// Moves of a pinned pawn.
-fn generate_pinned<M: GenMode>(
-    board: &Board,
-    ctx: &Context,
-    from: Square,
-    sink: &mut impl MoveSink,
-) {
+fn generate_pinned<M: GenMode>(ctx: &Context, from: Square, sink: &mut impl MoveSink) {
+    let board = ctx.board;
     let us = ctx.us;
     let allowed = line(ctx.king, from) & ctx.check_mask;
     let promotes = from.rank() == Rank::R7.relative_to(us);
@@ -125,16 +121,10 @@ fn promotions<M: GenMode>(from: Square, to: Square, capture: bool, sink: &mut im
 }
 
 /// En passant captures onto `ep`.
-fn en_passant(board: &Board, ctx: &Context, ep: Square, sink: &mut impl MoveSink) {
-    let captured = ep
-        .backward(ctx.us)
-        .expect("the en passant square is on the sixth rank");
-    let captured_bb = Bitboard::from_square(captured);
-    let enemies = board.color_bb(ctx.them).without(captured_bb);
+fn en_passant(ctx: &Context, ep: Square, sink: &mut impl MoveSink) {
+    let board = ctx.board;
     for from in pawn_attacks(ctx.them, ep) & board.piece_bb(ctx.us, PieceType::Pawn) {
-        let occupied =
-            ctx.occupied ^ Bitboard::from_square(from) ^ captured_bb ^ Bitboard::from_square(ep);
-        if (board.attackers_to(ctx.king, occupied) & enemies).is_empty() {
+        if board.is_en_passant_legal(ctx.us, from, ep) {
             sink.push(Move::en_passant(from, ep));
         }
     }

@@ -47,24 +47,24 @@ mod sealed {
 
 /// Pushes the legal moves of mode `M` in the position of `ctx` into `sink`.
 pub fn generate<M: GenMode>(ctx: &Context, sink: &mut impl MoveSink) {
-    let board = ctx.board;
-    king::generate::<M>(board, ctx, sink);
+    let allowed = mode_targets::<M>(ctx.board);
+    king::generate(ctx, allowed, sink);
     if ctx.double_check {
         // Only the king can move.
         return;
     }
-    pawns::generate::<M>(board, ctx, sink);
-    let targets = mode_targets::<M>(board) & ctx.check_mask;
+    pawns::generate::<M>(ctx, sink);
+    let targets = allowed & ctx.check_mask;
     for piece in [
         PieceType::Knight,
         PieceType::Bishop,
         PieceType::Rook,
         PieceType::Queen,
     ] {
-        pieces::generate(board, ctx, piece, targets, sink);
+        pieces::generate(ctx, piece, targets, sink);
     }
-    if M::QUIET && !board.in_check() {
-        king::generate_castles(board, ctx, sink);
+    if M::QUIET && !ctx.board.in_check() {
+        king::generate_castles(ctx, sink);
     }
 }
 

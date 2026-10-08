@@ -124,7 +124,7 @@ impl Bitboard {
     #[must_use]
     pub const fn lsb(self) -> Square {
         debug_assert!(!self.is_empty(), "lsb of an empty bitboard");
-        Square::from_index_masked(self.0.trailing_zeros())
+        Square::from_index_bounded(self.0.trailing_zeros())
     }
 
     /// The highest square set.
@@ -138,7 +138,7 @@ impl Bitboard {
     pub const fn msb(self) -> Square {
         debug_assert!(!self.is_empty(), "msb of an empty bitboard");
         // `63 ^ n` is `63 - n` for `n` below 64, without wrapping at 64.
-        Square::from_index_masked(63 ^ self.0.leading_zeros())
+        Square::from_index_bounded(63 ^ self.0.leading_zeros())
     }
 
     /// Removes and returns the lowest square set.

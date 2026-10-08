@@ -6,7 +6,7 @@ use crate::zobrist;
 impl Board {
     /// Puts `piece` on the empty square `sq`.
     pub(crate) fn add_piece(&mut self, piece: Piece, sq: Square) {
-        debug_assert!(
+        assert!(
             self.mailbox[sq.index()].is_none(),
             "add_piece: {sq} is taken"
         );
@@ -17,10 +17,9 @@ impl Board {
         self.toggle_hashes(piece, sq);
     }
 
-    /// Removes `piece` from `sq`. The caller already knows the piece, so the
-    /// mailbox is not read back.
+    /// Removes `piece` from `sq`.
     pub(crate) fn remove_piece(&mut self, piece: Piece, sq: Square) {
-        debug_assert_eq!(
+        assert_eq!(
             self.mailbox[sq.index()],
             Some(piece),
             "remove_piece: {piece} is not on {sq}"
@@ -32,15 +31,14 @@ impl Board {
         self.toggle_hashes(piece, sq);
     }
 
-    /// Moves `piece` from `from` to the empty square `to`. The caller already
-    /// knows the piece, so the mailbox is not read back.
+    /// Moves `piece` from `from` to the empty square `to`.
     pub(crate) fn move_piece(&mut self, piece: Piece, from: Square, to: Square) {
-        debug_assert_eq!(
+        assert_eq!(
             self.mailbox[from.index()],
             Some(piece),
             "move_piece: {piece} is not on {from}"
         );
-        debug_assert!(
+        assert!(
             self.mailbox[to.index()].is_none(),
             "move_piece: {to} is taken"
         );
