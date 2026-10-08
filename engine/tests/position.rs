@@ -147,6 +147,34 @@ fn lost_castling_rights_are_not_a_repetition() {
     assert_eq!(position.repetitions(), 1);
 }
 
+#[test]
+fn null_moves_do_not_make_repetitions() {
+    let mut position = Position::new(Board::startpos());
+    play(&mut position, &["g1f3"]);
+    position.make_null_move();
+    play(&mut position, &["f3g1"]);
+    position.make_null_move();
+    assert_eq!(position.board().hash(), Board::startpos().hash());
+    assert_eq!(position.repetitions(), 0);
+
+    play(&mut position, &["g1f3", "g8f6", "f3g1", "f6g8"]);
+    assert_eq!(position.repetitions(), 1);
+
+    for _ in 0..7 {
+        position.unmake();
+    }
+    play(&mut position, &["g8f6", "f3g1", "f6g8", "g1f3"]);
+    assert_eq!(position.repetitions(), 1);
+}
+
+#[test]
+#[cfg_attr(debug_assertions, should_panic(expected = "no move to undo"))]
+fn unmake_without_a_move_does_nothing_in_release() {
+    let mut position = Position::new(Board::startpos());
+    position.unmake();
+    assert_eq!(position.board(), &Board::startpos());
+}
+
 // Other draws
 
 #[test]

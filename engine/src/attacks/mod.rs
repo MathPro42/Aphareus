@@ -52,7 +52,7 @@ pub const fn aligned(a: Square, b: Square, c: Square) -> bool {
     line(a, b).contains(c)
 }
 
-// Squares attacked by a bishop on `sq` given the `occupied` squares.
+/// Squares attacked by a bishop on `sq` given the `occupied` squares.
 /// Blockers are included, whatever their color.
 #[inline]
 pub const fn bishop_attacks(sq: Square, occupied: Bitboard) -> Bitboard {

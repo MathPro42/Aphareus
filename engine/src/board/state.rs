@@ -49,30 +49,33 @@ impl Board {
     }
 
     /// Returns `true` if a `capturer` pawn can legally take en passant on
-    /// `ep`: some pawn attacks it, and the board after the capture leaves
-    /// its king safe (horizontal and diagonal pins, and checks the capture
-    /// does not answer, all fall out of that one simulation).
+    /// `ep`.
     ///
     /// The en passant square is part of the hash, so it must only be set
     /// when this holds: otherwise the same position gets two hashes.
     pub(crate) fn has_legal_en_passant(&self, capturer: Color, ep: Square) -> bool {
-        let pawns = pawn_attacks(!capturer, ep) & self.piece_bb(capturer, PieceType::Pawn);
-        if pawns.is_empty() {
-            return false;
-        }
+        (pawn_attacks(!capturer, ep) & self.piece_bb(capturer, PieceType::Pawn))
+            .into_iter()
+            .any(|from| self.is_en_passant_legal(capturer, from, ep))
+    }
+
+    /// Returns `true` if the `capturer` pawn on `from`, which attacks `ep`,
+    /// can legally take en passant there: the board after the capture must
+    /// leave its king safe. Horizontal and diagonal pins, and checks the
+    /// capture does not answer, all fall out of that one simulation.
+    ///
+    /// The only en passant legality rule: board state and move generation
+    /// both use it.
+    pub(crate) fn is_en_passant_legal(&self, capturer: Color, from: Square, ep: Square) -> bool {
         let king = self.king_square(capturer);
         let captured = Bitboard::from_square(
             ep.backward(capturer)
                 .expect("the en passant square is on the sixth rank"),
         );
         let enemies = self.color_bb(!capturer).without(captured);
-        pawns.into_iter().any(|from| {
-            let occupied = self.occupied()
-                ^ Bitboard::from_square(from)
-                ^ captured
-                ^ Bitboard::from_square(ep);
-            (self.attackers_to(king, occupied) & enemies).is_empty()
-        })
+        let occupied =
+            self.occupied() ^ Bitboard::from_square(from) ^ captured ^ Bitboard::from_square(ep);
+        (self.attackers_to(king, occupied) & enemies).is_empty()
     }
 
     /// Enemy pieces giving check to the side to move.

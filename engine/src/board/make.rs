@@ -78,7 +78,7 @@ impl Board {
             next.halfmove_clock = next.halfmove_clock.saturating_add(1);
         }
         if us == Color::Black {
-            next.fullmove_number += 1;
+            next.fullmove_number = next.fullmove_number.saturating_add(1);
         }
 
         //Side to move and new state keys.
@@ -96,8 +96,13 @@ impl Board {
 
     /// The position with the turn passed, for null-move pruning. The side
     /// to move must not be in check.
+    ///
+    /// # Panics
+    ///
+    /// If the side to move is in check, the opponent could
+    /// then take the king, and every later `king_square` would be wrong.
     pub fn make_null_move(&self) -> Board {
-        debug_assert!(!self.in_check(), "null move while in check");
+        assert!(!self.in_check(), "null move while in check");
         let mut next = self.clone();
         if let Some(ep) = next.en_passant.take() {
             next.hash ^= zobrist::en_passant(ep.file());

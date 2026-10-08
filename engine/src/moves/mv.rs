@@ -106,13 +106,13 @@ impl Move {
     /// The from square.
     #[inline]
     pub const fn from(self) -> Square {
-        Square::from_index_masked((self.0 & 63) as u32)
+        Square::from_index_bounded((self.0 & 63) as u32)
     }
 
     /// The to square (the rook's square for a castle).
     #[inline]
     pub const fn to(self) -> Square {
-        Square::from_index_masked(((self.0 >> 6) & 63) as u32)
+        Square::from_index_bounded(((self.0 >> 6) & 63) as u32)
     }
 
     /// The 4-bit flag.
@@ -183,7 +183,7 @@ impl Move {
             return None;
         }
         // Knight to queen are the piece types 1 to 4.
-        Some(PieceType::from_index_clamped((self.flag() & 3) as u32 + 1))
+        Some(PieceType::from_index_bounded((self.flag() & 3) as u32 + 1))
     }
 
     /// Moves searched by the noisy generation mode.

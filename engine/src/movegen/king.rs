@@ -1,19 +1,19 @@
-use super::GenMode;
-use super::masks::{Context, mode_targets};
+use super::masks::Context;
 use crate::attacks::{between, king_attacks};
 use crate::bitboard::Bitboard;
-use crate::board::{Board, CastlingConfig};
+use crate::board::CastlingConfig;
 use crate::moves::{Move, MoveSink};
 use crate::types::CastleSide;
 
-/// King steps to squares no enemy piece attacks. The check mask does not
-/// apply to the king.
-pub(super) fn generate<M: GenMode>(board: &Board, ctx: &Context, sink: &mut impl MoveSink) {
+/// King steps to the squares of `targets` no enemy piece attacks. The
+/// check mask does not apply to the king.
+pub(super) fn generate(ctx: &Context, targets: Bitboard, sink: &mut impl MoveSink) {
+    let board = ctx.board;
     let enemies = board.color_bb(ctx.them);
     // Without the king, it cannot hide behind itself: stepping back along
     // the line of the rook checking it stays attacked.
     let occupied = ctx.occupied ^ Bitboard::from_square(ctx.king);
-    for to in king_attacks(ctx.king) & mode_targets::<M>(board) {
+    for to in king_attacks(ctx.king) & targets {
         if (board.attackers_to(to, occupied) & enemies).is_empty() {
             sink.push(if enemies.contains(to) {
                 Move::capture(ctx.king, to)
@@ -25,7 +25,8 @@ pub(super) fn generate<M: GenMode>(board: &Board, ctx: &Context, sink: &mut impl
 }
 
 /// Castles, when not in check.
-pub(super) fn generate_castles(board: &Board, ctx: &Context, sink: &mut impl MoveSink) {
+pub(super) fn generate_castles(ctx: &Context, sink: &mut impl MoveSink) {
+    let board = ctx.board;
     let enemies = board.color_bb(ctx.them);
     for side in CastleSide::ALL {
         if !board.castling_rights().has(ctx.us, side) {

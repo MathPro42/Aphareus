@@ -14,7 +14,7 @@ use std::process::ExitCode;
 use std::time::{Duration, Instant};
 use std::{env, fs};
 
-use engine::{Board, divide, perft};
+use engine::{Board, divide, perft, to_uci};
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -34,7 +34,8 @@ fn main() -> ExitCode {
 }
 
 fn usage() -> String {
-    "usage: perft <depth> [FEN] [--divide]\n       perft --suite <file.epd> [max depth]".into()
+    "usage: perft <depth> [FEN] [--divide [--chess960]]\n       perft --suite <file.epd> [max depth]"
+        .into()
 }
 
 fn parse_depth(arg: &str) -> Result<u32, String> {
@@ -50,10 +51,11 @@ fn mnps(nodes: u64, elapsed: Duration) -> f64 {
 fn run_position(args: &[String]) -> Result<bool, String> {
     let depth = parse_depth(&args[0])?;
     let divide_mode = args.iter().any(|a| a == "--divide");
+    let chess960 = args.iter().any(|a| a == "--chess960");
     let fen: Vec<&str> = args[1..]
         .iter()
         .map(String::as_str)
-        .filter(|a| *a != "--divide")
+        .filter(|a| !a.starts_with("--"))
         .collect();
     let board = if fen.is_empty() {
         Board::startpos()
@@ -66,8 +68,8 @@ fn run_position(args: &[String]) -> Result<bool, String> {
         let start = Instant::now();
         let split = divide(&board, depth.max(1));
         let elapsed = start.elapsed();
-        for (m, nodes) in &split {
-            println!("{m:?}: {nodes}");
+        for &(m, nodes) in &split {
+            println!("{}: {nodes}", to_uci(&board, m, chess960));
         }
         let total: u64 = split.iter().map(|&(_, n)| n).sum();
         println!(

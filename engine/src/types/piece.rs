@@ -41,16 +41,6 @@ impl PieceType {
         self as usize
     }
 
-    /// The piece type of index `index`, the one conversion from an integer:
-    #[inline(always)]
-    pub(crate) const fn from_index_clamped(index: u32) -> PieceType {
-        debug_assert!(index < 6, "piece type index out of range");
-        let index = if index < 6 { index } else { 5 };
-        // SAFETY: `PieceType` is `repr(u8)` with the discriminants 0 to 5, and
-        // the clamp keeps the value in that range.
-        unsafe { core::mem::transmute::<u8, PieceType>(index as u8) }
-    }
-
     /// Returns `true` for pieces that slide (bishop, rook, queen).
     #[inline]
     pub const fn is_slider(self) -> bool {
@@ -134,38 +124,28 @@ impl Piece {
         self as usize
     }
 
-    /// The piece of index `index`, the one conversion from an integer:
-    #[inline(always)]
-    pub(crate) const fn from_index_clamped(index: u32) -> Piece {
-        debug_assert!(index < 12, "piece index out of range");
-        let index = if index < 12 { index } else { 11 };
-        // SAFETY: `Piece` is `repr(u8)` with the discriminants 0 to 11, and
-        // the clamp keeps the value in that range.
-        unsafe { core::mem::transmute::<u8, Piece>(index as u8) }
-    }
-
     /// Builds a piece from its color and type (`index = type × 2 + color`).
     #[inline]
     pub const fn new(color: Color, piece_type: PieceType) -> Piece {
-        Piece::from_index_clamped((piece_type as u32) << 1 | color as u32)
+        Piece::from_index_bounded((piece_type as u32) << 1 | color as u32)
     }
 
     /// Return the piece color.
     #[inline]
     pub const fn color(self) -> Color {
-        Color::from_index_masked(self as u32 & 1)
+        Color::from_index_bounded(self as u32 & 1)
     }
 
     /// Return the piece type.
     #[inline]
     pub const fn piece_type(self) -> PieceType {
-        PieceType::from_index_clamped(self as u32 >> 1)
+        PieceType::from_index_bounded(self as u32 >> 1)
     }
 
     /// Change the color of a piece.
     #[inline]
     pub const fn flip(self) -> Piece {
-        Piece::from_index_clamped(self as u32 ^ 1)
+        Piece::from_index_bounded(self as u32 ^ 1)
     }
 
     /// Parses a FEN piece letter: uppercase is White (`PNBRQK`),

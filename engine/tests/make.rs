@@ -269,6 +269,15 @@ fn fullmove_number_after_black() {
     );
 }
 
+#[test]
+fn fullmove_number_saturates() {
+    check(
+        "4k3/8/8/8/8/8/8/4K3 b - - 3 65535",
+        Move::quiet(E8, D8),
+        "3k4/8/8/8/8/8/8/4K3 w - - 4 65535",
+    );
+}
+
 // Checks and pins
 
 #[test]
@@ -309,6 +318,20 @@ fn null_move_keeps_pins_of_the_new_side() {
     assert_eq!(after.side_to_move(), Color::Black);
     assert_eq!(after.compute_pinned(), Bitboard::from_square(E7));
     assert!(after.checkers().is_empty());
+}
+
+#[test]
+#[should_panic(expected = "null move while in check")]
+fn null_move_in_check_panics() {
+    let _ = parse("4k3/8/8/8/8/8/4r3/4K3 w - - 0 1").make_null_move();
+}
+
+// Moves that do not fit the board
+
+#[test]
+#[should_panic(expected = "e2 is taken")]
+fn move_onto_an_occupied_square_panics() {
+    let _ = Board::startpos().make_move(Move::quiet(G1, E2));
 }
 
 // Transpositions
