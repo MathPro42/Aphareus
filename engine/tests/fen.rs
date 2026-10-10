@@ -30,6 +30,7 @@ fn variant_index(error: FenError) -> usize {
         FenError::KingCount => 7,
         FenError::PawnOnBackRank => 8,
         FenError::OpponentInCheck => 9,
+        FenError::Material => 10,
     }
 }
 
@@ -44,7 +45,7 @@ fn round_trip() {
 
 #[test]
 fn invalid_fens_give_the_expected_error() {
-    let mut seen = [false; 10];
+    let mut seen = [false; 11];
     for line in data_lines(INVALID) {
         let (fen, expected) = line.split_once('|').expect("FEN | error");
         let (fen, expected) = (fen.trim(), expected.trim());
@@ -57,6 +58,29 @@ fn invalid_fens_give_the_expected_error() {
         seen.iter().all(|&s| s),
         "a FenError variant has no test: {seen:?}"
     );
+}
+
+#[test]
+fn material_beyond_promotions_is_rejected() {
+    for fen in [
+        // 9 pawns.
+        "4k3/8/8/8/8/P7/PPPPPPPP/4K3 w - - 0 1",
+        "4k3/8/8/8/8/QQQ5/PPPPPPP1/4K3 w - - 0 1",
+        "rrr1k3/pppppppp/8/8/8/8/8/4K3 w - - 0 1",
+        "QQQQQQnk/Q4Qnn/Q5QQ/Q6Q/Q6Q/Q6Q/Q6Q/KQQQQQQQ w - - 0 1",
+    ] {
+        assert_eq!(Board::from_fen(fen), Err(FenError::Material), "{fen}");
+    }
+}
+
+#[test]
+fn material_up_to_the_promotion_limit_is_accepted() {
+    for fen in [
+        "4k3/8/8/8/8/QQQ5/PPPPPP2/4K3 w - - 0 1",
+        "R6R/3Q4/1Q4Q1/4Q3/2Q4Q/Q4Q2/pp1Q4/kBNN1KB1 w - - 0 1",
+    ] {
+        assert!(Board::from_fen(fen).is_ok(), "{fen}");
+    }
 }
 
 #[test]

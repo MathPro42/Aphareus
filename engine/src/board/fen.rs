@@ -67,6 +67,13 @@ impl Board {
         if !(board.attackers_to(their_king, board.occupied()) & board.color_bb(us)).is_empty() {
             return Err(FenError::OpponentInCheck);
         }
+
+        if !Color::ALL
+            .into_iter()
+            .all(|color| possible_material(&board, color))
+        {
+            return Err(FenError::Material);
+        }
         debug_assert_eq!(board.check_consistency(), Ok(()));
         Ok(board)
     }
@@ -185,6 +192,16 @@ fn parse_placement(board: &mut Board, field: &str) -> Result<(), FenError> {
         return Err(FenError::PawnOnBackRank);
     }
     Ok(())
+}
+
+/// Returns `true` if a game can give `color` its material.
+fn possible_material(board: &Board, color: Color) -> bool {
+    let count = |piece_type| board.piece_bb(color, piece_type).count();
+    let promoted = count(PieceType::Queen).saturating_sub(1)
+        + count(PieceType::Rook).saturating_sub(2)
+        + count(PieceType::Bishop).saturating_sub(2)
+        + count(PieceType::Knight).saturating_sub(2);
+    count(PieceType::Pawn) + promoted <= 8
 }
 
 /// Reads the castling field: `-`, standard letters (`KQkq`: the outermost
