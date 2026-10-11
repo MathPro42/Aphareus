@@ -22,5 +22,6 @@ pub use error::FenError;
 pub use moves::{Move, MoveList, MoveSink};
 pub use perft::{divide, perft};
 pub use position::Position;
+pub use prng::Prng;
 pub use types::{CastleSide, CastlingRights, Color, File, Piece, PieceType, Rank, Square};
 pub use uci_move::{from_uci, to_uci};

@@ -219,6 +219,26 @@ fn go_depth_plays_from_the_position_after_the_moves() {
 }
 
 #[test]
+fn go_with_clocks_uses_the_clock_of_the_side_to_move() {
+    // Black to move: 100 ms gives 5 ms. White's clock would give 1 s.
+    let mut engine = Engine::start();
+    engine.send("position startpos moves e2e4");
+    let start = Instant::now();
+    engine.send("go wtime 60000 btime 100");
+    let line = engine.wait_for("bestmove");
+    assert!(
+        start.elapsed() < QUICK,
+        "bestmove took {:?}",
+        start.elapsed()
+    );
+    let board = Board::startpos();
+    let after_e4 = board.make_move(from_uci(&board, "e2e4", false).unwrap());
+    assert_legal(&after_e4, &line);
+    engine.send("quit");
+    engine.wait_end();
+}
+
+#[test]
 fn go_infinite_searches_until_stop_and_answers_isready_meanwhile() {
     let mut engine = Engine::start();
     engine.send("position startpos");

@@ -7,11 +7,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
 
-use engine::movegen::legal_moves;
-use engine::{Board, CastleSide, Color, File, Move, Position, from_uci, to_uci};
+use engine::{Board, CastleSide, Color, File, Position, from_uci, to_uci};
 
+use crate::randommover;
 use command::{Command, GoParams, PositionBase, parse};
 use options::{DECLARATIONS, Options};
 
@@ -158,7 +157,14 @@ impl Session {
         let search = thread::Builder::new()
             .name("search".to_string())
             .stack_size(SEARCH_STACK_SIZE)
-            .spawn(move || play_first_move(position, params, chess960, stop, output))
+            .spawn(move || {
+                let board = position.board();
+                let best = randommover::play(board, &params, &stop);
+                send(
+                    &output,
+                    &format!("bestmove {}", to_uci(board, best, chess960)),
+                );
+            })
             .expect("the search thread starts");
         self.search = Some(search);
     }
@@ -171,33 +177,6 @@ impl Session {
             let _ = search.join();
         }
     }
-}
-
-/// Stand-in for the random mover of step 2.5: plays the first legal move,
-/// or `0000` without one. Answers at once, except for `go infinite`, which
-/// waits for `stop`.
-fn play_first_move(
-    position: Position,
-    params: GoParams,
-    chess960: bool,
-    stop: Arc<AtomicBool>,
-    output: Output,
-) {
-    if params.infinite {
-        while !stop.load(Ordering::Relaxed) {
-            thread::sleep(Duration::from_millis(1));
-        }
-    }
-    let board = position.board();
-    let best = legal_moves(board)
-        .as_slice()
-        .first()
-        .copied()
-        .unwrap_or(Move::NULL);
-    send(
-        &output,
-        &format!("bestmove {}", to_uci(board, best, chess960)),
-    );
 }
 
 /// Returns `true` if a castling right of `board` only exists in Chess960:
