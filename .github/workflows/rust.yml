@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  FASTCHESS_SHA: f618e34540f94f4719ad3817950618dabe441318  # v1.8.2-alpha
 
 jobs:
   build:
@@ -28,3 +29,48 @@ jobs:
       run: cargo clippy --workspace --all-targets -- -D warnings
     - name: Test
       run: cargo test --workspace
+
+  games:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, ubuntu-24.04-arm ]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        rustflags: ""
+    - name: Restore fastchess
+      id: cache-fastchess
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/fastchess/fastchess
+        key: fastchess-${{ env.FASTCHESS_SHA }}-${{ runner.os }}-${{ runner.arch }}
+    - name: Build fastchess
+      if: steps.cache-fastchess.outputs.cache-hit != 'true'
+      run: |
+        git init -q ~/fastchess
+        git -C ~/fastchess fetch -q --depth 1 https://github.com/Disservin/fastchess "$FASTCHESS_SHA"
+        git -C ~/fastchess checkout -q FETCH_HEAD
+        make -C ~/fastchess -j"$(nproc)" NATIVE=
+    - name: Save fastchess
+      if: steps.cache-fastchess.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ~/fastchess/fastchess
+        key: fastchess-${{ env.FASTCHESS_SHA }}-${{ runner.os }}-${{ runner.arch }}
+    - name: Build engine
+      run: cargo build --release -p aphareus
+    - name: Play games
+      run: |
+        FASTCHESS=~/fastchess/fastchess CONCURRENCY="$(nproc)" LOG_ENGINE=true \
+          scripts/run_games.sh target/release/aphareus target/release/aphareus 1+0.05 100 -- -strict
+    - name: Upload games
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: games-${{ matrix.os }}
+        path: target/games/
