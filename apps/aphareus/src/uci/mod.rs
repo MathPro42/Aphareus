@@ -1,4 +1,6 @@
 pub mod command;
+pub(crate) mod extra;
+mod options;
 
 use std::io::{BufRead, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,6 +13,7 @@ use engine::movegen::legal_moves;
 use engine::{Board, CastleSide, Color, File, Move, Position, from_uci, to_uci};
 
 use command::{Command, GoParams, PositionBase, parse};
+use options::{DECLARATIONS, Options};
 
 /// The UCI output, shared by the main loop and the search thread.
 type Output = Arc<Mutex<dyn Write + Send>>;
@@ -64,6 +67,7 @@ struct Session {
     position: Position,
     /// Castles are written king takes rook (`e1h1`) instead of `e1g1`.
     chess960: bool,
+    options: Options,
     /// Raised to end the running search.
     stop: Arc<AtomicBool>,
     /// The search thread, from `go` until it is joined.
@@ -75,6 +79,7 @@ impl Session {
         Session {
             position: Position::new(Board::startpos()),
             chess960: false,
+            options: Options::default(),
             stop: Arc::new(AtomicBool::new(false)),
             search: None,
         }
@@ -86,6 +91,9 @@ impl Session {
                 let version = env!("CARGO_PKG_VERSION");
                 send(output, &format!("id name Aphareus {version}"));
                 send(output, "id author Mathias Gallard");
+                for spin in DECLARATIONS {
+                    send(output, &spin.to_string());
+                }
                 send(output, "uciok");
             }
             Command::IsReady => send(output, "readyok"),
@@ -97,8 +105,13 @@ impl Session {
             Command::Position { base, moves } => self.set_position(base, &moves, output),
             Command::Go(params) => self.go(params, output),
             Command::Stop => self.stop_search(),
-            // `setoption` comes in step 2.3, `perft` and `d` in step 2.4.
-            Command::SetOption { .. } | Command::Perft(_) | Command::Display => {}
+            Command::SetOption { name, value } => {
+                if let Err(e) = self.options.set(&name, value.as_deref()) {
+                    send(output, &format!("info string setoption {name}: {e}"));
+                }
+            }
+            Command::Perft(depth) => send(output, &extra::perft(self.position.board(), depth)),
+            Command::Display => send(output, &extra::display(self.position.board())),
             // `quit` is handled by `run`.
             Command::Unknown(_) | Command::Quit => {}
         }

@@ -144,7 +144,41 @@ fn uci_handshake() {
     let lines = engine.lines();
     assert!(lines[0].starts_with("id name Aphareus "), "{lines:?}");
     assert!(lines[1].starts_with("id author "), "{lines:?}");
-    assert_eq!(lines.last().unwrap(), "uciok");
+    assert_eq!(
+        lines[2..],
+        [
+            "option name Hash type spin default 16 min 1 max 33554432",
+            "option name Threads type spin default 1 min 1 max 1024",
+            "option name Move Overhead type spin default 10 min 0 max 5000",
+            "uciok",
+        ]
+    );
+    engine.send("quit");
+    engine.wait_end();
+}
+
+#[test]
+fn setoption_errors_are_reported_and_ignored() {
+    let mut engine = Engine::start();
+    engine.send("setoption name Hash value 64");
+    engine.send("setoption name move overhead value 99999");
+    engine.send("isready");
+    engine.wait_for("readyok");
+    assert!(engine.lines_starting_with("info string").is_empty());
+
+    engine.send("setoption name UCI_Foo value 1");
+    engine.send("setoption name Threads value many");
+    engine.send("setoption name Hash");
+    engine.send("isready");
+    engine.wait_for_count("readyok", 2);
+    assert_eq!(
+        engine.lines_starting_with("info string"),
+        [
+            "info string setoption UCI_Foo: unknown option",
+            "info string setoption Threads: not a number",
+            "info string setoption Hash: missing value",
+        ]
+    );
     engine.send("quit");
     engine.wait_end();
 }
@@ -293,6 +327,35 @@ fn no_legal_move_gives_0000() {
     engine.send(&format!("position fen {MATED}"));
     engine.send("go depth 1");
     assert_eq!(engine.wait_for("bestmove"), "bestmove 0000");
+    engine.send("quit");
+    engine.wait_end();
+}
+
+#[test]
+fn perft_counts_the_current_position() {
+    let mut engine = Engine::start();
+    engine.send("position startpos moves e2e4");
+    engine.send("perft 2");
+    let line = engine.wait_for("info string perft");
+    assert!(line.starts_with("info string perft(2) = 600 ("), "{line}");
+    engine.send("quit");
+    engine.wait_end();
+}
+
+#[test]
+fn d_shows_the_current_position() {
+    let mut engine = Engine::start();
+    engine.send("position startpos moves e2e4");
+    engine.send("d");
+    engine.send("isready");
+    engine.wait_for("readyok");
+    let start = Board::startpos();
+    let after_e4 = start.make_move(from_uci(&start, "e2e4", false).unwrap());
+    let fen = engine.wait_for("FEN:");
+    assert_eq!(
+        fen.split_whitespace().skip(1).collect::<Vec<_>>().join(" "),
+        after_e4.to_fen()
+    );
     engine.send("quit");
     engine.wait_end();
 }
