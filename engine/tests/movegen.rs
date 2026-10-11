@@ -30,6 +30,8 @@ fn move_counts() {
     assert_eq!(legal_moves(&Board::startpos()).len(), 20);
     let kiwipete = parse("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
     assert_eq!(legal_moves(&kiwipete).len(), 48);
+    let record = parse("R6R/3Q4/1Q4Q1/4Q3/2Q4Q/Q4Q2/pp1Q4/kBNN1KB1 w - - 0 1");
+    assert_eq!(legal_moves(&record).len(), 218);
 }
 
 #[test]

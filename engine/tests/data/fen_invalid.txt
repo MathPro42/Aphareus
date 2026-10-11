@@ -55,3 +55,7 @@ P3k3/8/8/8/8/8/8/4K3 w - - 0 1 | PawnOnBackRank
 # OpponentInCheck
 4k3/8/8/8/8/8/8/4R1K1 w - - 0 1 | OpponentInCheck
 4k3/8/8/8/8/8/3q4/4K3 b - - 0 1 | OpponentInCheck
+
+# Material
+4k3/8/8/8/8/P7/PPPPPPPP/4K3 w - - 0 1 | Material
+4k3/8/8/8/8/QQQ5/PPPPPPP1/4K3 w - - 0 1 | Material

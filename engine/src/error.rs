@@ -24,6 +24,10 @@ pub enum FenError {
     KingCount,
     /// A pawn stands on the first or last rank.
     PawnOnBackRank,
+    /// A side has material no game can give it: more pawns plus promoted
+    /// pieces (those beyond the starting set) than its 8 pawns. Such
+    /// positions can have more legal moves than a `MoveList` holds.
+    Material,
     /// The side not to move is in check.
     OpponentInCheck,
 }
@@ -43,6 +47,7 @@ impl fmt::Display for FenError {
             FenError::Counter => write!(f, "invalid halfmove clock or fullmove number"),
             FenError::KingCount => write!(f, "each side needs exactly one king"),
             FenError::PawnOnBackRank => write!(f, "pawn on the first or last rank"),
+            FenError::Material => write!(f, "more pieces than promotions allow"),
             FenError::OpponentInCheck => write!(f, "the side not to move is in check"),
         }
     }

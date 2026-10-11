@@ -1,0 +1,14 @@
+[package]
+name = "aphareus"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "aphareus"
+path = "src/main.rs"
+
+[dependencies]
+engine.workspace = true
