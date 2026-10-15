@@ -27,6 +27,8 @@ pub enum Command {
     Perft(u32),
     /// `d`: shows the board.
     Display,
+    /// `eval`: shows the evaluation, term by term.
+    Eval,
     /// An empty or unknown line: ignored, never an error.
     Unknown(String),
 }
@@ -69,6 +71,7 @@ pub fn parse(line: &str) -> Command {
         "quit" => Command::Quit,
         "perft" => Command::Perft(number(rest.first().copied()).unwrap_or(1)),
         "d" => Command::Display,
+        "eval" => Command::Eval,
         _ => Command::Unknown(line.to_string()),
     }
 }
@@ -173,6 +176,7 @@ mod tests {
         assert_eq!(parse("stop"), Command::Stop);
         assert_eq!(parse("quit"), Command::Quit);
         assert_eq!(parse("d"), Command::Display);
+        assert_eq!(parse("eval"), Command::Eval);
     }
 
     #[test]

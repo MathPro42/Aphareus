@@ -380,6 +380,31 @@ fn d_shows_the_current_position() {
     engine.wait_end();
 }
 
+/// The number in an `eval` score line: `Score (…): <n> cp`.
+fn eval_score(line: &str) -> i32 {
+    let (_, value) = line.split_once(": ").expect("a score line");
+    value.trim_end_matches(" cp").parse().unwrap()
+}
+
+#[test]
+fn eval_shows_the_current_position() {
+    let mut engine = Engine::start();
+    engine.send("position startpos");
+    engine.send("eval");
+    assert_eq!(engine.wait_for("Phase:"), "Phase: 24 / 24");
+    assert_eq!(eval_score(&engine.wait_for("Score (White):")), 0);
+    assert_eq!(eval_score(&engine.wait_for("Score (side to move):")), 0);
+
+    engine.send("position startpos moves e2e4");
+    engine.send("eval");
+    let white = eval_score(&engine.wait_for_count("Score (White):", 2)[1]);
+    let to_move = eval_score(&engine.wait_for_count("Score (side to move):", 2)[1]);
+    assert_ne!(white, 0, "1. e4 should change the score");
+    assert_eq!(to_move, -white, "Black is to move");
+    engine.send("quit");
+    engine.wait_end();
+}
+
 #[test]
 fn unknown_and_malformed_lines_are_ignored() {
     let mut engine = Engine::start();

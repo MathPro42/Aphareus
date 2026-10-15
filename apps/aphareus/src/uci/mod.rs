@@ -111,6 +111,7 @@ impl Session {
             }
             Command::Perft(depth) => send(output, &extra::perft(self.position.board(), depth)),
             Command::Display => send(output, &extra::display(self.position.board())),
+            Command::Eval => send(output, &extra::eval(self.position.board())),
             // `quit` is handled by `run`.
             Command::Unknown(_) | Command::Quit => {}
         }

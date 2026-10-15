@@ -8,6 +8,7 @@ edition = "2024"
 
 [workspace.dependencies]
 engine = { path = "engine" }
+eval = { path = "eval" }
 
 [workspace.lints.clippy]
 undocumented_unsafe_blocks = "warn"

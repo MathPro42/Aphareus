@@ -7,6 +7,7 @@ name = "aphareus"
 version = "0.1.0"
 dependencies = [
  "engine",
+ "eval",
 ]
 
 [[package]]
