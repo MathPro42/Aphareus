@@ -113,12 +113,15 @@ impl Score {
     #[inline]
     pub const fn from_tt(self, ply: usize) -> Score {
         debug_assert!(ply <= Score::MAX_PLY, "ply out of range");
+        let max = Score::MATE_IN_MAX.0;
         if self.0 == Score::NONE.0 {
             self
         } else if self.is_win() {
-            Score(self.0 - ply as i32)
+            let v = self.0 - ply as i32;
+            Score(if v > max { v } else { max })
         } else if self.is_loss() {
-            Score(self.0 + ply as i32)
+            let v = self.0 + ply as i32;
+            Score(if v < -max { v } else { -max })
         } else {
             self
         }
@@ -313,6 +316,41 @@ mod tests {
                     loss.is_loss() && loss > -Score::INFINITE,
                     "n = {n}, ply = {ply}"
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn tt_read_deeper_stays_mate() {
+        // Mate found 20 plies below a node at ply 10, read back at ply 240.
+        assert_eq!(
+            Score::mate_in(30).to_tt(10).from_tt(240),
+            Score::MATE_IN_MAX
+        );
+        assert_eq!(
+            Score::mated_in(30).to_tt(10).from_tt(240),
+            -Score::MATE_IN_MAX
+        );
+
+        // Mate `n` plies from the root, stored at `stored`, read at `read`.
+        for n in 0..=Score::MAX_PLY {
+            for stored in 0..=n {
+                let below = n - stored;
+                for read in 0..=Score::MAX_PLY {
+                    let win = Score::mate_in(n).to_tt(stored).from_tt(read);
+                    let loss = Score::mated_in(n).to_tt(stored).from_tt(read);
+                    if below + read <= Score::MAX_PLY {
+                        assert_eq!(win, Score::mate_in(below + read));
+                        assert_eq!(loss, Score::mated_in(below + read));
+                    } else {
+                        assert_eq!(win, Score::MATE_IN_MAX, "n {n} stored {stored} read {read}");
+                        assert_eq!(
+                            loss,
+                            -Score::MATE_IN_MAX,
+                            "n {n} stored {stored} read {read}"
+                        );
+                    }
+                }
             }
         }
     }
