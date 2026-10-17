@@ -66,23 +66,42 @@ impl Position {
             .expect("a position always has a board")
     }
 
-    #[must_use]
-    pub fn repetitions(&self) -> u32 {
+    /// Distances back to the earlier boards equal to the current one, nearest
+    /// first. Only boards with the same side to move are checked, from 4
+    /// plies back.
+    fn repeated_at(&self) -> impl Iterator<Item = usize> + '_ {
         let end = self.hashes.len() - 1;
         let current = self.hashes[end];
         // Neither a capture or pawn move nor a null move can be crossed;
         // `plies_from_null` never exceeds `end`.
         let limit =
             usize::from(self.board().halfmove_clock()).min(usize::from(self.plies_from_null()));
-        let mut count = 0;
-        let mut i = 4;
-        while i <= limit {
-            if self.hashes[end - i] == current {
-                count += 1;
+        (4..=limit)
+            .step_by(2)
+            .filter(move |&i| self.hashes[end - i] == current)
+    }
+
+    #[must_use]
+    pub fn repetitions(&self) -> u32 {
+        self.repeated_at().fold(0, |count, _| count + 1)
+    }
+
+    /// Returns `true` if the current board is a draw by repetition, `ply`
+    /// moves after the root of a search: a second occurrence inside the
+    /// search, root included, or a third one in the game before the root.
+    #[must_use]
+    pub fn is_repetition_draw(&self, ply: usize) -> bool {
+        let mut before_root = 0;
+        for i in self.repeated_at() {
+            if i <= ply {
+                return true;
             }
-            i += 2;
+            before_root += 1;
+            if before_root == 2 {
+                return true;
+            }
         }
-        count
+        false
     }
 
     /// Returns `true` if 100 plies have passed without a capture or pawn

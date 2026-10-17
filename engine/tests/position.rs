@@ -167,6 +167,48 @@ fn null_moves_do_not_make_repetitions() {
     assert_eq!(position.repetitions(), 1);
 }
 
+// Repetition draws in a search
+
+#[test]
+fn a_repetition_inside_the_search_is_a_draw() {
+    let mut position = Position::new(Board::startpos());
+    play(&mut position, &["g1f3", "g8f6", "f3g1", "f6g8"]);
+    assert!(position.is_repetition_draw(4));
+    // With the root one ply later, the first occurrence is in the game.
+    assert!(!position.is_repetition_draw(3));
+}
+
+#[test]
+fn a_repetition_before_the_root_needs_a_third_occurrence() {
+    let mut position = Position::new(Board::startpos());
+    play(&mut position, &["g1f3", "g8f6", "f3g1", "f6g8"]);
+    assert!(!position.is_repetition_draw(0));
+    play(&mut position, &["g1f3", "g8f6", "f3g1", "f6g8"]);
+    assert!(position.is_repetition_draw(0));
+}
+
+#[test]
+fn a_pawn_move_ends_the_repetition_draws() {
+    let mut position = Position::new(Board::startpos());
+    play(
+        &mut position,
+        &["g1f3", "g8f6", "f3g1", "f6g8", "e2e4", "e7e5"],
+    );
+    play(&mut position, &["g1f3", "g8f6", "f3g1", "f6g8"]);
+    assert!(!position.is_repetition_draw(0));
+}
+
+#[test]
+fn null_moves_do_not_make_repetition_draws() {
+    let mut position = Position::new(Board::startpos());
+    play(&mut position, &["g1f3"]);
+    position.make_null_move();
+    play(&mut position, &["f3g1"]);
+    position.make_null_move();
+    assert_eq!(position.board().hash(), Board::startpos().hash());
+    assert!(!position.is_repetition_draw(4));
+}
+
 #[test]
 #[cfg_attr(debug_assertions, should_panic(expected = "no move to undo"))]
 fn unmake_without_a_move_does_nothing_in_release() {

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["engine", "eval", "apps/*"]
+members = ["engine", "eval", "search", "apps/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -9,6 +9,7 @@ edition = "2024"
 [workspace.dependencies]
 engine = { path = "engine" }
 eval = { path = "eval" }
+search = { path = "search" }
 
 [workspace.lints.clippy]
 undocumented_unsafe_blocks = "warn"
