@@ -1,5 +1,9 @@
 mod limits;
+#[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
+mod pv;
 mod report;
+#[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
+mod stack;
 #[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
 mod time;
 
