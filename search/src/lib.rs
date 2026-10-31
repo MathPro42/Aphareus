@@ -1,12 +1,13 @@
 mod limits;
 #[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
 mod pv;
+#[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
+mod qsearch;
 mod report;
 mod root;
 mod shared;
 #[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
 mod stack;
-#[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
 mod thread;
 #[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
 mod time;

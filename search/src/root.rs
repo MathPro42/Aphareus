@@ -28,7 +28,6 @@ pub(crate) fn search(
     t.can_stop = false;
 
     let moves = legal_moves(t.position.board());
-    // Iterative deepening comes with step 4.8. Until then: the first legal move.
     let best = moves.as_slice().first().copied().unwrap_or(Move::NULL);
 
     wait_if_infinite(shared, limits);

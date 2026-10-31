@@ -26,10 +26,8 @@ const CHECK_INTERVAL: u64 = 1024;
 pub(crate) struct ThreadState {
     /// Boards and hashes from the root of the game.
     pub(crate) position: Position,
-    #[expect(dead_code, reason = "read by the search")]
     pub(crate) evaluator: Evaluator,
     pub(crate) stack: Stack,
-    #[expect(dead_code, reason = "read by the search")]
     pub(crate) pv: PvTable,
     /// Local node count.
     pub(crate) nodes: u64,
