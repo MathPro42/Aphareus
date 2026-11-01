@@ -1,15 +1,12 @@
+mod alphabeta;
 mod limits;
-#[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
 mod pv;
-#[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
 mod qsearch;
 mod report;
 mod root;
 mod shared;
-#[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
 mod stack;
 mod thread;
-#[cfg_attr(not(test), expect(dead_code, reason = "used later"))]
 mod time;
 
 pub use limits::Limits;

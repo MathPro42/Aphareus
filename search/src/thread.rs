@@ -18,7 +18,6 @@ use crate::time::TimeManager;
 const STACK_SIZE: usize = 64 << 20;
 
 /// The stop flag and the hard time limit are read once every this many nodes.
-#[cfg_attr(not(test), expect(dead_code, reason = "used by the search"))]
 const CHECK_INTERVAL: u64 = 1024;
 
 /// Everything one search thread owns, without lock or atomic. Allocated once
@@ -66,7 +65,6 @@ impl ThreadState {
     /// Sets `stopped` if the search must stop. Called at every node, costly
     /// only once every `CHECK_INTERVAL` nodes. The node limit is tested at
     /// every node, so a search limited in nodes is exactly reproducible.
-    #[cfg_attr(not(test), expect(dead_code, reason = "used by the search"))]
     #[inline]
     pub(crate) fn check_stop(&mut self, shared: &Shared) {
         if !self.can_stop {
