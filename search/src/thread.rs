@@ -15,7 +15,7 @@ use crate::time::TimeManager;
 
 /// The search is recursive: its thread gets a large stack. Only the pages
 /// actually touched use memory.
-const STACK_SIZE: usize = 64 << 20;
+pub(crate) const STACK_SIZE: usize = 64 << 20;
 
 /// The stop flag and the hard time limit are read once every this many nodes.
 const CHECK_INTERVAL: u64 = 1024;

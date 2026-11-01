@@ -1,4 +1,5 @@
 mod alphabeta;
+pub mod bench;
 mod limits;
 mod pv;
 mod qsearch;

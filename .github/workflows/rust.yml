@@ -30,6 +30,46 @@ jobs:
     - name: Test
       run: cargo test --workspace
 
+  bench:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, ubuntu-24.04-arm ]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        rustflags: ""
+    - name: Build engine
+      run: cargo build --release -p aphareus
+    - name: Bench
+      run: |
+        set -o pipefail
+        target/release/aphareus bench | tee bench.txt
+        tail -n 1 bench.txt | cut -d ' ' -f 1 > nodes.txt
+    - name: Upload bench
+      uses: actions/upload-artifact@v4
+      with:
+        name: bench-${{ matrix.os }}
+        path: nodes.txt
+
+  bench-check:
+    needs: bench
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: bench-*
+    - name: Bench on x86-64 and ARM64
+      run: |
+        x86="$(cat bench-ubuntu-latest/nodes.txt)"
+        arm="$(cat bench-ubuntu-24.04-arm/nodes.txt)"
+        echo "x86-64: $x86, ARM64: $arm"
+        [ -n "$x86" ] && [ "$x86" = "$arm" ]
+
   games:
     needs: build
     strategy:

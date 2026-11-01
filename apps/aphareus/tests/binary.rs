@@ -51,3 +51,17 @@ fn perft_argument_checks_a_file() {
         "{stdout}"
     );
 }
+
+#[test]
+fn bench_argument_prints_the_node_count() {
+    let output = run(&["bench".as_ref(), "1".as_ref()]);
+    assert!(output.status.success(), "{output:?}");
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let last = stdout.lines().last().unwrap();
+    let fields: Vec<&str> = last.split_whitespace().collect();
+    assert_eq!(fields.len(), 4, "{last}");
+    assert!(fields[0].parse::<u64>().is_ok(), "{last}");
+    assert_eq!(fields[1], "nodes", "{last}");
+    assert!(fields[2].parse::<u64>().is_ok(), "{last}");
+    assert_eq!(fields[3], "nps", "{last}");
+}
