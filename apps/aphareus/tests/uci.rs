@@ -22,6 +22,9 @@ const ONE_MOVE: &str = "k7/8/8/8/8/8/1r6/K1r5 w - - 0 1";
 /// Black is checkmated.
 const MATED: &str = "k7/1Q6/1K6/8/8/8/8/8 b - - 0 1";
 
+/// White mates in one on the back rank: `a1a8`.
+const BACK_RANK: &str = "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1";
+
 /// An output the test reads while `run` writes to it.
 #[derive(Clone, Default)]
 struct SharedOutput(Arc<Mutex<Vec<u8>>>);
@@ -260,6 +263,115 @@ fn go_infinite_searches_until_stop_and_answers_isready_meanwhile() {
     engine.send("quit");
     engine.wait_end();
     assert_eq!(engine.lines_starting_with("bestmove").len(), 1);
+}
+
+#[test]
+fn isready_during_go_infinite_does_not_stop_the_search() {
+    let mut engine = Engine::start();
+    engine.send("go infinite");
+    engine.wait_for("info depth 1 ");
+    let start = Instant::now();
+    engine.send("isready");
+    engine.wait_for("readyok");
+    assert!(
+        start.elapsed() < QUICK,
+        "readyok took {:?}",
+        start.elapsed()
+    );
+    // The search goes on: more iterations, still no `bestmove`.
+    engine.wait_for("info depth 3 ");
+    assert!(engine.lines_starting_with("bestmove").is_empty());
+    engine.send("stop");
+    engine.wait_for("bestmove");
+    engine.send("quit");
+    engine.wait_end();
+}
+
+#[test]
+fn go_depth_reports_each_iteration_then_bestmove() {
+    let mut engine = Engine::start();
+    engine.send("position startpos");
+    engine.send("go depth 3");
+    let line = engine.wait_for("bestmove");
+    assert_legal(&Board::startpos(), &line);
+    let lines = engine.lines();
+    let depths: Vec<&str> = lines
+        .iter()
+        .filter_map(|line| line.strip_prefix("info depth "))
+        .map(|rest| rest.split_whitespace().next().unwrap())
+        .collect();
+    assert_eq!(depths, ["1", "2", "3"], "{lines:?}");
+    assert!(lines.last().unwrap().starts_with("bestmove"), "{lines:?}");
+    // Numbers replaced by `#`, then at least one move.
+    for info in &lines[..3] {
+        let shape: Vec<&str> = info
+            .split_whitespace()
+            .map(|f| if f.parse::<i64>().is_ok() { "#" } else { f })
+            .collect();
+        assert_eq!(
+            shape[..15],
+            [
+                "info", "depth", "#", "seldepth", "#", "score", "cp", "#", "nodes", "#", "nps",
+                "#", "time", "#", "pv"
+            ],
+            "{info}"
+        );
+        assert!(shape.len() > 15, "{info}");
+    }
+    engine.send("quit");
+    engine.wait_end();
+}
+
+#[test]
+fn mate_in_one_is_reported_as_mate() {
+    let mut engine = Engine::start();
+    engine.send(&format!("position fen {BACK_RANK}"));
+    engine.send("go depth 3");
+    assert_eq!(engine.wait_for("bestmove"), "bestmove a1a8");
+    let info = engine.wait_for("info depth 1 ");
+    assert!(info.contains(" score mate 1 "), "{info}");
+    assert!(info.ends_with(" pv a1a8"), "{info}");
+    engine.send("quit");
+    engine.wait_end();
+}
+
+/// The node count of the last `bench` line: `<n> nodes <nps> nps`.
+fn bench_nodes(line: &str) -> u64 {
+    let fields: Vec<&str> = line.split_whitespace().collect();
+    assert_eq!(fields.len(), 4, "{line}");
+    assert_eq!(fields[1], "nodes", "{line}");
+    assert!(fields[2].parse::<u64>().is_ok(), "{line}");
+    assert_eq!(fields[3], "nps", "{line}");
+    fields[0].parse().unwrap()
+}
+
+#[test]
+fn bench_prints_the_same_count_each_time() {
+    let mut engine = Engine::start();
+    engine.send("bench 1");
+    engine.send("bench 1");
+    engine.send("isready");
+    engine.wait_for("readyok");
+    let lines = engine.lines();
+    assert_eq!(lines.len(), 2 * 51 + 1, "{lines:?}");
+    assert_eq!(lines[0], lines[51], "per position");
+    assert_eq!(bench_nodes(&lines[50]), bench_nodes(&lines[101]));
+    engine.send("quit");
+    engine.wait_end();
+}
+
+#[test]
+fn bench_with_a_bad_depth_is_reported_and_ignored() {
+    let mut engine = Engine::start();
+    engine.send("bench x");
+    engine.send("isready");
+    engine.wait_for("readyok");
+    assert_eq!(
+        engine.lines(),
+        ["info string bench: invalid depth x", "readyok"]
+    );
+    engine.send("quit");
+    engine.wait_end();
 }
 
 #[test]

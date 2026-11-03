@@ -3,9 +3,9 @@ use std::io::Write;
 use std::time::Instant;
 
 use engine::{Board, perft};
-use search::bench::{self, BENCH_DEPTH};
+use search::bench::BENCH_DEPTH;
 
-use crate::uci::extra::nps;
+use crate::uci::extra::{self, nps};
 
 /// Runs the command-line mode. `args` are the arguments without the program
 /// name. Returns the process exit code: 0 on success, 1 on failure.
@@ -89,16 +89,7 @@ fn run_bench(depth: Option<&String>, out: &mut impl Write, err: &mut impl Write)
             return 1;
         }
     };
-    let result = bench::run(depth);
-    for (i, nodes) in result.nodes_per_position.iter().enumerate() {
-        let _ = writeln!(out, "position {:>2}: {nodes} nodes", i + 1);
-    }
-    let _ = writeln!(
-        out,
-        "{} nodes {} nps",
-        result.nodes,
-        nps(result.nodes, result.time)
-    );
+    let _ = writeln!(out, "{}", extra::bench(depth));
     0
 }
 

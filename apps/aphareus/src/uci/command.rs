@@ -1,7 +1,7 @@
 use std::str::FromStr;
-use std::time::Duration;
 
 use engine::Color;
+use search::Limits;
 
 /// A line from the GUI, parsed.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -20,7 +20,9 @@ pub enum Command {
         base: PositionBase,
         moves: Vec<String>,
     },
-    Go(GoParams),
+    /// `go`: `move_overhead` is left at 0, the caller sets it from the
+    /// options.
+    Go(Limits),
     Stop,
     Quit,
     /// `perft <depth>`: not standard, but common.
@@ -29,6 +31,9 @@ pub enum Command {
     Display,
     /// `eval`: shows the evaluation, term by term.
     Eval,
+    /// `bench [depth]`: `Ok(None)` without a depth, `Err(text)` if the depth
+    /// cannot be read.
+    Bench(Result<Option<u32>, String>),
     /// An empty or unknown line: ignored, never an error.
     Unknown(String),
 }
@@ -38,20 +43,6 @@ pub enum Command {
 pub enum PositionBase {
     StartPos,
     Fen(String),
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct GoParams {
-    pub depth: Option<u32>,
-    /// `movetime`: the time to spend on this move.
-    pub movetime: Option<Duration>,
-    /// `wtime` and `btime`, indexed by `Color::index()`.
-    pub time: [Option<Duration>; Color::COUNT],
-    /// `winc` and `binc`, indexed by `Color::index()`.
-    pub inc: [Option<Duration>; Color::COUNT],
-    pub movestogo: Option<u32>,
-    pub nodes: Option<u64>,
-    pub infinite: bool,
 }
 
 /// Parses one line. Never fails: anything not understood is `Unknown`.
@@ -72,6 +63,7 @@ pub fn parse(line: &str) -> Command {
         "perft" => Command::Perft(number(rest.first().copied()).unwrap_or(1)),
         "d" => Command::Display,
         "eval" => Command::Eval,
+        "bench" => Command::Bench(parse_bench(rest.first().copied())),
         _ => Command::Unknown(line.to_string()),
     }
 }
@@ -106,31 +98,31 @@ fn parse_position(tokens: &[&str]) -> Command {
 
 /// `go` limits, in any order. Other tokens (`ponder`, `searchmoves` and its
 /// moves, `mate`…) are skipped one by one.
-fn parse_go(tokens: &[&str]) -> GoParams {
-    let mut params = GoParams::default();
+fn parse_go(tokens: &[&str]) -> Limits {
+    let mut limits = Limits::default();
     let (white, black) = (Color::White.index(), Color::Black.index());
     let mut i = 0;
     while i < tokens.len() {
         let value = tokens.get(i + 1).copied();
         let mut has_value = true;
         match tokens[i] {
-            "depth" => params.depth = number(value),
-            "movetime" => params.movetime = millis(value),
-            "wtime" => params.time[white] = millis(value),
-            "btime" => params.time[black] = millis(value),
-            "winc" => params.inc[white] = millis(value),
-            "binc" => params.inc[black] = millis(value),
-            "movestogo" => params.movestogo = number(value),
-            "nodes" => params.nodes = number(value),
+            "depth" => limits.depth = number(value),
+            "movetime" => limits.movetime = millis(value),
+            "wtime" => limits.time[white] = millis(value),
+            "btime" => limits.time[black] = millis(value),
+            "winc" => limits.inc[white] = millis(value),
+            "binc" => limits.inc[black] = millis(value),
+            "movestogo" => limits.movestogo = number(value),
+            "nodes" => limits.nodes = number(value),
             "infinite" => {
-                params.infinite = true;
+                limits.infinite = true;
                 has_value = false;
             }
             _ => has_value = false,
         }
         i += if has_value { 2 } else { 1 };
     }
-    params
+    limits
 }
 
 /// `text` as a number, or `None` if missing or unreadable.
@@ -138,10 +130,18 @@ fn number<T: FromStr>(text: Option<&str>) -> Option<T> {
     text?.parse().ok()
 }
 
-/// `text` as milliseconds.
-fn millis(text: Option<&str>) -> Option<Duration> {
+/// The depth of `bench`, if any. Extra tokens are ignored.
+fn parse_bench(depth: Option<&str>) -> Result<Option<u32>, String> {
+    match depth {
+        None => Ok(None),
+        Some(text) => text.parse().map(Some).map_err(|_| text.to_string()),
+    }
+}
+
+/// `text` as milliseconds. A negative time is 0.
+fn millis(text: Option<&str>) -> Option<u64> {
     let ms: i64 = number(text)?;
-    Some(Duration::from_millis(ms.max(0).unsigned_abs()))
+    Some(ms.max(0).unsigned_abs())
 }
 
 #[cfg(test)]
@@ -150,15 +150,15 @@ mod tests {
 
     const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-    fn go(line: &str) -> GoParams {
+    fn go(line: &str) -> Limits {
         match parse(line) {
             Command::Go(params) => params,
             other => panic!("{line:?} gave {other:?}"),
         }
     }
 
-    fn ms(n: u64) -> Option<Duration> {
-        Some(Duration::from_millis(n))
+    fn ms(n: u64) -> Option<u64> {
+        Some(n)
     }
 
     fn position(base: PositionBase, moves: &[&str]) -> Command {
@@ -222,10 +222,10 @@ mod tests {
         let params = go("go wtime 300000 btime 300000 winc 0 binc 0");
         assert_eq!(
             params,
-            GoParams {
+            Limits {
                 time: [ms(300_000), ms(300_000)],
                 inc: [ms(0), ms(0)],
-                ..GoParams::default()
+                ..Limits::default()
             }
         );
     }
@@ -234,31 +234,31 @@ mod tests {
     fn go_single_limits() {
         assert_eq!(
             go("go infinite"),
-            GoParams {
+            Limits {
                 infinite: true,
-                ..GoParams::default()
+                ..Limits::default()
             }
         );
         assert_eq!(
             go("go depth 5"),
-            GoParams {
+            Limits {
                 depth: Some(5),
-                ..GoParams::default()
+                ..Limits::default()
             }
         );
         assert_eq!(
             go("go movetime 100"),
-            GoParams {
+            Limits {
                 movetime: ms(100),
-                ..GoParams::default()
+                ..Limits::default()
             }
         );
         assert_eq!(
             go("go nodes 1000 movestogo 20"),
-            GoParams {
+            Limits {
                 nodes: Some(1000),
                 movestogo: Some(20),
-                ..GoParams::default()
+                ..Limits::default()
             }
         );
     }
@@ -267,14 +267,14 @@ mod tests {
     fn go_skips_what_it_does_not_know() {
         assert_eq!(
             go("go ponder searchmoves e2e4 d2d4 depth 3"),
-            GoParams {
+            Limits {
                 depth: Some(3),
-                ..GoParams::default()
+                ..Limits::default()
             }
         );
         assert_eq!(
             go("go depth x movetime"),
-            GoParams::default(),
+            Limits::default(),
             "unreadable or missing values are ignored"
         );
     }
@@ -318,6 +318,23 @@ mod tests {
         assert_eq!(parse("perft 4"), Command::Perft(4));
         assert_eq!(parse("perft"), Command::Perft(1));
         assert_eq!(parse("perft x"), Command::Perft(1));
+    }
+
+    #[test]
+    fn bench_depth() {
+        assert_eq!(parse("bench"), Command::Bench(Ok(None)));
+        assert_eq!(parse("bench 3"), Command::Bench(Ok(Some(3))));
+        assert_eq!(parse("bench 3 x"), Command::Bench(Ok(Some(3))));
+    }
+
+    #[test]
+    fn bench_unreadable_depth_is_kept_as_text() {
+        for depth in ["x", "-1", "2x"] {
+            assert_eq!(
+                parse(&format!("bench {depth}")),
+                Command::Bench(Err(depth.to_string()))
+            );
+        }
     }
 
     #[test]
