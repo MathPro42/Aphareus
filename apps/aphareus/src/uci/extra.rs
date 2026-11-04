@@ -2,6 +2,7 @@ use std::time::{Duration, Instant};
 
 use engine::{Board, Color};
 use eval::{Evaluator, Taper, trace};
+use search::bench;
 
 /// `perft <depth>`: the leaf count, its time and speed, as an
 /// `info string` so that a strict GUI ignores it.
@@ -67,6 +68,23 @@ fn row(label: &str, white: Taper, black: Taper) -> String {
 /// The middlegame and endgame values of `t`, 17 characters wide.
 fn cells(t: Taper) -> String {
     format!(" {:>7} {:>7} ", t.mg(), t.eg())
+}
+
+/// `bench [depth]`: one line per position, then `<nodes> nodes <nps> nps`.
+pub fn bench(depth: u32) -> String {
+    let result = bench::run(depth);
+    let mut lines: Vec<String> = result
+        .nodes_per_position
+        .iter()
+        .enumerate()
+        .map(|(i, nodes)| format!("position {:>2}: {nodes} nodes", i + 1))
+        .collect();
+    lines.push(format!(
+        "{} nodes {} nps",
+        result.nodes,
+        nps(result.nodes, result.time)
+    ));
+    lines.join("\n")
 }
 
 /// Nodes per second. Counted in nanoseconds: small perfts take under 1 ms.

@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "engine",
  "eval",
+ "search",
 ]
 
 [[package]]
@@ -19,4 +20,12 @@ name = "eval"
 version = "0.1.0"
 dependencies = [
  "engine",
+]
+
+[[package]]
+name = "search"
+version = "0.1.0"
+dependencies = [
+ "engine",
+ "eval",
 ]

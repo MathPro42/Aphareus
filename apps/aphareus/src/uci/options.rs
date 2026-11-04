@@ -50,14 +50,14 @@ const MOVE_OVERHEAD: Spin = Spin {
 /// Every option, in the order `uci` declares them.
 pub const DECLARATIONS: [Spin; 3] = [HASH, THREADS, MOVE_OVERHEAD];
 
-/// The values set by the GUI. None has an effect yet.
+/// The values set by the GUI.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Options {
-    /// Hash table size, in MB. Used from phase 5.
+    /// Hash table size, in MB. No effect yet.
     pub hash: i64,
-    /// Search threads. Used from phase 9.
+    /// Search threads. Only one is used for now.
     pub threads: i64,
-    /// Time kept back on each move for lag, in ms. Used from phase 4.
+    /// Time kept back on each move for lag, in ms.
     pub move_overhead: i64,
 }
 

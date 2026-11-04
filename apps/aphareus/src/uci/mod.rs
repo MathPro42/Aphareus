@@ -1,64 +1,39 @@
 pub mod command;
 pub(crate) mod extra;
 mod options;
+mod output;
 
 use std::io::{BufRead, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{self, Sender};
-use std::sync::{Arc, Mutex, PoisonError};
-use std::thread::{self, JoinHandle};
+use std::sync::{Arc, Mutex};
 
-use engine::{Board, CastleSide, Color, File, Position, from_uci, to_uci};
+use engine::{Board, CastleSide, Color, File, Position, from_uci};
+use search::{Limits, SearchPool};
 
-use crate::randommover;
-use command::{Command, GoParams, PositionBase, parse};
+use command::{Command, PositionBase, parse};
 use options::{DECLARATIONS, Options};
-
-/// The UCI output, shared by the main loop and the search thread.
-type Output = Arc<Mutex<dyn Write + Send>>;
-
-/// Stack of the search thread. Only reserved: memory is used as the
-/// search goes deeper.
-const SEARCH_STACK_SIZE: usize = 64 << 20;
+use output::{Output, UciReporter, send};
 
 /// Runs the UCI protocol: reads commands from `input` until `quit` or the
 /// end of the input, and writes the answers to `output`.
-pub fn run(input: impl BufRead + Send + 'static, output: impl Write + Send + 'static) {
+pub fn run(mut input: impl BufRead, output: impl Write + Send + 'static) {
     let output: Output = Arc::new(Mutex::new(output));
-    let (lines, received) = mpsc::channel();
-    // Detached: it ends with the input, or at its next line once `run` has
-    // returned.
-    thread::spawn(move || read_lines(input, &lines));
     let mut session = Session::new();
-    for line in received {
-        match parse(&line) {
+    let mut bytes = Vec::new();
+    loop {
+        bytes.clear();
+        // The end of the input, or a read error, is `quit`.
+        match input.read_until(b'\n', &mut bytes) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {}
+        }
+        // Lossy: a line that is not UTF-8 becomes an unknown command.
+        let line = String::from_utf8_lossy(&bytes);
+        match parse(line.trim_end_matches(['\r', '\n'])) {
             Command::Quit => break,
             command => session.handle(command, &output),
         }
     }
-    session.stop_search();
-}
-
-/// Sends each line of `input` to the main loop, then `quit` at the end of
-/// the input or on a read error.
-fn read_lines(mut input: impl BufRead, lines: &Sender<String>) {
-    let mut bytes = Vec::new();
-    loop {
-        bytes.clear();
-        match input.read_until(b'\n', &mut bytes) {
-            Ok(0) | Err(_) => break,
-            Ok(_) => {
-                // Lossy: a line that is not UTF-8 becomes an unknown command.
-                let line = String::from_utf8_lossy(&bytes);
-                let line = line.trim_end_matches(['\r', '\n']).to_string();
-                if lines.send(line).is_err() {
-                    // `run` has returned.
-                    return;
-                }
-            }
-        }
-    }
-    let _ = lines.send("quit".to_string());
+    session.pool.quit();
 }
 
 /// What the UCI loop keeps between commands.
@@ -67,10 +42,7 @@ struct Session {
     /// Castles are written king takes rook (`e1h1`) instead of `e1g1`.
     chess960: bool,
     options: Options,
-    /// Raised to end the running search.
-    stop: Arc<AtomicBool>,
-    /// The search thread, from `go` until it is joined.
-    search: Option<JoinHandle<()>>,
+    pool: SearchPool,
 }
 
 impl Session {
@@ -79,11 +51,14 @@ impl Session {
             position: Position::new(Board::startpos()),
             chess960: false,
             options: Options::default(),
-            stop: Arc::new(AtomicBool::new(false)),
-            search: None,
+            pool: SearchPool::new(),
         }
     }
 
+    /// `go`, `ucinewgame`, `perft` and `bench` stop the running search and
+    /// wait for it; `stop` only asks it to stop. The other commands do not
+    /// touch it: the search has its own copy of
+    /// the position and reads no option.
     fn handle(&mut self, command: Command, output: &Output) {
         match command {
             Command::Uci => {
@@ -97,21 +72,32 @@ impl Session {
             }
             Command::IsReady => send(output, "readyok"),
             Command::UciNewGame => {
-                self.stop_search();
+                self.pool.new_game();
                 self.position = Position::new(Board::startpos());
                 self.chess960 = false;
             }
             Command::Position { base, moves } => self.set_position(base, &moves, output),
-            Command::Go(params) => self.go(params, output),
-            Command::Stop => self.stop_search(),
+            Command::Go(limits) => self.go(limits, output),
+            Command::Stop => self.pool.stop(),
             Command::SetOption { name, value } => {
                 if let Err(e) = self.options.set(&name, value.as_deref()) {
                     send(output, &format!("info string setoption {name}: {e}"));
                 }
             }
-            Command::Perft(depth) => send(output, &extra::perft(self.position.board(), depth)),
+            Command::Perft(depth) => {
+                self.stop_search();
+                send(output, &extra::perft(self.position.board(), depth));
+            }
             Command::Display => send(output, &extra::display(self.position.board())),
             Command::Eval => send(output, &extra::eval(self.position.board())),
+            Command::Bench(Ok(depth)) => {
+                self.stop_search();
+                let depth = depth.unwrap_or(search::bench::BENCH_DEPTH);
+                send(output, &extra::bench(depth));
+            }
+            Command::Bench(Err(depth)) => {
+                send(output, &format!("info string bench: invalid depth {depth}"));
+            }
             // `quit` is handled by `run`.
             Command::Unknown(_) | Command::Quit => {}
         }
@@ -146,37 +132,27 @@ impl Session {
         self.chess960 = chess960;
     }
 
-    /// Searches the current position in a thread of its own.
-    fn go(&mut self, params: GoParams, output: &Output) {
-        // One search at a time: the GUI should have sent `stop`.
-        self.stop_search();
-        self.stop.store(false, Ordering::Relaxed);
-        let position = self.position.clone();
-        let chess960 = self.chess960;
-        let stop = Arc::clone(&self.stop);
-        let output = Arc::clone(output);
-        let search = thread::Builder::new()
-            .name("search".to_string())
-            .stack_size(SEARCH_STACK_SIZE)
-            .spawn(move || {
-                let board = position.board();
-                let best = randommover::play(board, &params, &stop);
-                send(
-                    &output,
-                    &format!("bestmove {}", to_uci(board, best, chess960)),
-                );
-            })
-            .expect("the search thread starts");
-        self.search = Some(search);
+    /// Starts searching the current position and returns at once. A running
+    /// search is stopped first.
+    fn go(&mut self, limits: Limits, output: &Output) {
+        let limits = Limits {
+            // Clamped to 0..=5000 by the options.
+            move_overhead: self.options.move_overhead.unsigned_abs(),
+            ..limits
+        };
+        let reporter = UciReporter::new(
+            self.position.board().clone(),
+            self.chess960,
+            Arc::clone(output),
+        );
+        self.pool
+            .start(self.position.clone(), limits, Box::new(reporter));
     }
 
     /// Stops the running search, if any, and waits for its `bestmove`.
     fn stop_search(&mut self) {
-        self.stop.store(true, Ordering::Relaxed);
-        if let Some(search) = self.search.take() {
-            // A search that panicked has nothing left to say.
-            let _ = search.join();
-        }
+        self.pool.stop();
+        self.pool.wait();
     }
 }
 
@@ -197,15 +173,6 @@ fn is_chess960(board: &Board) -> bool {
                     || rook.map(|sq| sq.file()) != Some(corner))
         })
     })
-}
-
-/// Writes `line` and flushes it: the GUI reads line by line.
-fn send(output: &Output, line: &str) {
-    // A writer poisoned by a panic still holds whole lines. A closed output
-    // cannot be reported anywhere; the end of the input will follow.
-    let mut output = output.lock().unwrap_or_else(PoisonError::into_inner);
-    let _ = writeln!(output, "{line}");
-    let _ = output.flush();
 }
 
 #[cfg(test)]

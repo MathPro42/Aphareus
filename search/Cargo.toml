@@ -1,0 +1,11 @@
+[package]
+name = "search"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+engine.workspace = true
+eval.workspace = true

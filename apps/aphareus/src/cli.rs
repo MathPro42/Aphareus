@@ -3,14 +3,16 @@ use std::io::Write;
 use std::time::Instant;
 
 use engine::{Board, perft};
+use search::bench::BENCH_DEPTH;
 
-use crate::uci::extra::nps;
+use crate::uci::extra::{self, nps};
 
 /// Runs the command-line mode. `args` are the arguments without the program
 /// name. Returns the process exit code: 0 on success, 1 on failure.
 pub fn run(args: &[String], out: &mut impl Write, err: &mut impl Write) -> u8 {
     match args.first().map(String::as_str) {
         Some("perft") => perft_suite(args.get(1), out, err),
+        Some("bench") => run_bench(args.get(1), out, err),
         // An error message that cannot be written has nowhere else to go.
         Some(command) => {
             let _ = writeln!(err, "unknown command: {command}");
@@ -77,6 +79,20 @@ fn check_suite(text: &str, out: &mut impl Write, err: &mut impl Write) -> u8 {
     u8::from(failed)
 }
 
+/// `bench [depth]`: one line per position, then `<nodes> nodes <nps> nps`.
+fn run_bench(depth: Option<&String>, out: &mut impl Write, err: &mut impl Write) -> u8 {
+    let depth = match depth.map(|text| text.parse()) {
+        None => BENCH_DEPTH,
+        Some(Ok(depth)) => depth,
+        Some(Err(_)) => {
+            let _ = writeln!(err, "usage: aphareus bench [depth]");
+            return 1;
+        }
+    };
+    let _ = writeln!(out, "{}", extra::bench(depth));
+    0
+}
+
 /// `D<depth> <nodes>` as `(depth, nodes)`.
 fn parse_count(field: &str) -> Option<(u32, u64)> {
     let mut tokens = field.split_whitespace();
@@ -129,6 +145,40 @@ mod tests {
         assert_eq!(code, 1);
         assert!(out.is_empty());
         assert_eq!(err, "unknown command: inconnue\n");
+    }
+
+    #[test]
+    fn bench_ends_with_the_total() {
+        let (code, out, err) = run_with(&["bench", "1"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.is_empty());
+        let lines: Vec<&str> = out.lines().collect();
+        assert_eq!(lines.len(), 51, "{out}");
+        let per_position: u64 = lines[..50]
+            .iter()
+            .map(|line| {
+                let fields: Vec<&str> = line.split_whitespace().collect();
+                assert_eq!(fields[0], "position");
+                assert_eq!(fields[3], "nodes");
+                fields[2].parse::<u64>().unwrap()
+            })
+            .sum();
+        let last: Vec<&str> = lines[50].split_whitespace().collect();
+        assert_eq!(last.len(), 4, "{out}");
+        assert_eq!(last[0].parse::<u64>().unwrap(), per_position);
+        assert_eq!(last[1], "nodes");
+        assert!(last[2].parse::<u64>().is_ok());
+        assert_eq!(last[3], "nps");
+    }
+
+    #[test]
+    fn bench_rejects_a_bad_depth() {
+        for depth in ["x", "-1", ""] {
+            let (code, out, err) = run_with(&["bench", depth]);
+            assert_eq!(code, 1);
+            assert!(out.is_empty());
+            assert_eq!(err, "usage: aphareus bench [depth]\n");
+        }
     }
 
     #[test]

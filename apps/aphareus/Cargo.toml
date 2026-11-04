@@ -13,3 +13,4 @@ path = "src/main.rs"
 [dependencies]
 engine.workspace = true
 eval.workspace = true
+search.workspace = true
