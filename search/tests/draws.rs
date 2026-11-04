@@ -71,9 +71,10 @@ fn losing_side_finds_the_perpetual() {
 
 #[test]
 fn repetition_needs_the_game_history() {
-    // The same root without its history: no repetition within 3 plies.
+    let r = search(position(PERPETUAL, CYCLE), Limits::depth(2));
+    assert_eq!(last_score(&r), Score::DRAW);
     let fen = position(PERPETUAL, CYCLE).board().to_fen();
-    let r = search(position(&fen, ""), Limits::depth(3));
+    let r = search(position(&fen, ""), Limits::depth(2));
     assert!(last_score(&r) < Score::DRAW);
 }
 

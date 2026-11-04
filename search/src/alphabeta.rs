@@ -84,7 +84,7 @@ pub(crate) fn alphabeta(
 
 /// Insufficient material, repetition, or fifty moves. A mate given on the
 /// hundredth ply is still a mate.
-fn is_draw(t: &ThreadState, ply: usize) -> bool {
+pub(crate) fn is_draw(t: &ThreadState, ply: usize) -> bool {
     let board = t.position.board();
     if board.is_insufficient_material() || t.position.is_repetition_draw(ply) {
         return true;
@@ -285,10 +285,18 @@ mod tests {
 
     #[test]
     fn repetition_needs_the_game_history() {
-        // The same root without its history: no repetition within 3 plies.
-        let fen = played(PERPETUAL, CYCLE).position.board().to_fen();
+        let mut t = played(PERPETUAL, CYCLE);
+        assert_eq!(search(&mut t, 2), Score::DRAW);
+        let fen = t.position.board().to_fen();
         let mut t = state(&fen);
-        assert!(search(&mut t, 3) < Score::DRAW);
+        assert!(search(&mut t, 2) < Score::DRAW);
+    }
+
+    #[test]
+    fn repetition_is_seen_before_the_quiescence_search() {
+        let mut t = played(PERPETUAL, &format!("{CYCLE} e8h5 h7g8"));
+        assert_eq!(search(&mut t, 1), Score::DRAW);
+        assert_eq!(t.pv.line(), [uci(&t, "h5e8")]);
     }
 
     #[test]

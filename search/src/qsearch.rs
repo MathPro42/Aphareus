@@ -2,6 +2,7 @@ use engine::movegen::{All, Context, Noisy, generate};
 use engine::{Board, Move, MoveList, PieceType};
 use eval::Score;
 
+use crate::alphabeta::is_draw;
 use crate::shared::Shared;
 use crate::thread::ThreadState;
 
@@ -21,6 +22,11 @@ pub(crate) fn qsearch(
     t.check_stop(shared);
     if t.stopped {
         // Ignored by the caller.
+        return Score::DRAW;
+    }
+    // A check evasion, or the quiet move that led to the first node, can
+    // repeat the position or reach the fifty-move rule.
+    if ply > 0 && is_draw(t, ply) {
         return Score::DRAW;
     }
     let board = t.position.board();
@@ -118,8 +124,9 @@ mod tests {
 
     use super::*;
 
-    /// The knight on e3 can take the queen on d5.
-    const HANGING_QUEEN: &str = "4k3/8/8/3q4/8/4N3/8/4K3 w - - 0 1";
+    /// The knight on e3 can take the queen on d5. The pawns keep enough
+    /// material on the board after the capture.
+    const HANGING_QUEEN: &str = "4k3/p7/8/3q4/8/4N3/P7/4K3 w - - 0 1";
     /// Qxd5 is the only capture, and c6xd5 takes the queen back.
     const LOSING_CAPTURE: &str = "4k3/8/2p5/3p4/8/8/3Q4/4K3 w - - 0 1";
     /// In check, Kg2 is the only move, then ...Rxa4 wins the knight.
@@ -141,6 +148,28 @@ mod tests {
 
     fn static_eval(t: &mut ThreadState) -> Score {
         t.evaluator.evaluate(t.position.board())
+    }
+
+    #[test]
+    fn quiet_evasion_reaching_the_fifty_move_rule_is_a_draw() {
+        // White is a rook down and in check on the 99th ply: each king move
+        // reaches the 100th, a draw where the line stops.
+        let mut t = state("r6k/8/8/8/8/8/8/K7 w - - 99 80");
+        assert_eq!(search(&mut t, 0), Score::DRAW);
+        assert_eq!(t.pv.line().len(), 1);
+    }
+
+    #[test]
+    fn repetition_inside_the_quiescence_search_is_a_draw() {
+        // Kb1 and Ka1, twice: the root has been seen twice before.
+        let mut t = state("r6k/8/8/8/8/8/8/K7 w - - 0 1");
+        for text in [
+            "a1b1", "a8b8", "b1a1", "b8a8", "a1b1", "a8b8", "b1a1", "b8a8",
+        ] {
+            let mv = engine::from_uci(t.position.board(), text, false).unwrap();
+            t.position.make_move(mv);
+        }
+        assert_eq!(search(&mut t, 1), Score::DRAW);
     }
 
     #[test]
